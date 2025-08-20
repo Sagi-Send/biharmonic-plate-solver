@@ -1,7 +1,7 @@
 classdef Plate
     properties (Constant)
         h  = 0.5;   % half-thickness (total = 2h)
-        E  = 1.0;
+        E  = 20.0;
         nu = 0.20;
         w0 = 1.0;
     end
@@ -83,7 +83,7 @@ classdef Plate
                               - bn(m).*cX .* ( (ah*ch).*sy - alpha*Y.*cy.*sh )/Dp;
             end
 
-            % strains (plane stress) → integrate to u0,v0
+            % strains (plane stress) -> integrate to u0,v0
             epsx = (sigx - nu*sigy)/E;
             epsy = (sigy - nu*sigx)/E;
 
@@ -100,8 +100,8 @@ classdef Plate
             end
 
             % shear compatibility correction via separated fit
-            [~,Uy] = gradient(u0, dx, dy);   % Uy = ∂u/∂y
-            [Vx,~] = gradient(v0, dx, dy);   % Vx = ∂v/∂x
+            [~,Uy] = gradient(u0, dx, dy);   % Uy = du/dy
+            [Vx,~] = gradient(v0, dx, dy);   % Vx = dv/dx
             R = Uy + Vx - tauxy./G;
 
             K     = mean(R(:));

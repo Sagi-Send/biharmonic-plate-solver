@@ -1,91 +1,130 @@
 classdef Plotter
     properties
-        plate
+        plates
         mode_list
+    end
+    properties (Constant, Access=private)
+        CB_LABEL_FS = 14;     % colorbar title size
+        CB_TICK_FS  = 11;     % colorbar tick size
+        AX_LABEL_FS = 12;     % axes label size
     end
 
     methods
-        function obj = Plotter(plate, mode_list)
-            obj.plate     = plate;
+        function obj = Plotter(plates, mode_list)
+            obj.plates    = plates;
             obj.mode_list = mode_list;
         end
 
         function plot_displacement(obj)
-            plate = obj.plate;  mode_list = obj.mode_list;
-            Nmode_wholeplot = mode_list(end);
+            plates = obj.plates;  mode_list = obj.mode_list;
+            Nmode  = mode_list(end);
+            nP     = numel(plates);
 
-            % --- Figure 1: v(x,0) vs truncation ---
+            % --- Figure 1: v(x,0) vs N ---
             figure('Name','v(x,0) vs N'); hold on;
             leg = strings(1,numel(mode_list));
-            for i = 1:numel(mode_list)
-                Nmode = mode_list(i);
-                [~,v,xv_plot,yv_plot] = plate.solve_plate(Nmode);
-                [~,iy0] = min(abs(yv_plot-0));
-                plot(xv_plot, v(iy0,:), 'LineWidth', 1.4);
-                leg(i) = sprintf('N = %d', Nmode);
+            [~,v,xv,yv] = plates(1).solve_plate(mode_list(1));
+            [~,iy0] = min(abs(yv));  % y=0 index
+            for j = 1:numel(mode_list)
+                [~,v,xv,~] = plates(1).solve_plate(mode_list(j));
+                plot(xv, v(iy0,:), 'LineWidth', 1.4);
+                leg(j) = sprintf('N = %d', mode_list(j));
             end
             grid off; xlabel('x'); ylabel('v(x,0)');
-            title(sprintf('v(x,0) for multiple truncations (Nx=%d, Ny=%d)',...
-                plate.Nx, plate.Ny));
+            % title('v(x,0) Midline Deflection for Multiple Truncations');
             legend(leg, 'Location','best'); hold off;
-            set(gca,'YDir','reverse')
+            set(gca,'YDir','reverse');
 
-            % --- Figure 2: deformed field colored by v(x,y) ---
-            [u,v,xv,yv] = plate.solve_plate(Nmode_wholeplot);
-            [X,Y] = meshgrid(xv,yv);
+            % --- Figure 2: deformed field colored by v/u for each plate ---
+            figure('Name','Deformed field (v and u)');
+            t = tiledlayout(nP,2,'Padding','compact','TileSpacing','compact');
 
-            mag = sqrt(u.^2 + v.^2);
-            sf  = 0.15 * max(plate.l,plate.h) / max(mag(:) + eps);
-            Xd = X + sf*u;   Yd = Y + sf*v;
+            for i = 1:nP
+                [u,v,xv,yv] = plates(i).solve_plate(Nmode);
+                [X,Y] = meshgrid(xv,yv);
+                mag = sqrt(u.^2 + v.^2);
+                sf  = 0.15 * max(plates(i).l, plates(i).h) / max(mag(:)+eps);
+                Xd  = X + sf*u;   Yd = Y + sf*v;
 
-            figure('Name','Deformed field (v)');
-            surf(Xd, Yd, zeros(size(v)), v, 'EdgeColor','none');
-            view(2); axis equal tight; colormap(parula); colorbar;
-            cmaxV = max(abs(v(:))); if cmaxV>0, caxis([-cmaxV cmaxV]); end
-            xlabel('x'); ylabel('y');
-            title(sprintf('Deformed mesh + v-coloring (scale=%.3g), N=%d',...
-                sf, Nmode_wholeplot));
-            set(gca,'YDir','reverse')
+                % v (left)
+                ax = nexttile(t,(i-1)*2+1);
+                surf(ax, Xd, Yd, 0*v, v, 'EdgeColor','none');
+                set(ax,'YDir','reverse'); view(ax,2); axis(ax,'equal','tight');
+                colormap(ax, parula); obj.setCbar(ax,'v');
+                obj.symClim(ax, v); grid(ax,'off');
+                xlabel(ax,'x','FontWeight','bold','FontSize',obj.AX_LABEL_FS);
+                ylabel(ax,'y','FontWeight','bold','FontSize',obj.AX_LABEL_FS);
+                % title(ax, sprintf('h/l=%.3g, N=%d (v)', plates(i).S^-1, Nmode));
+
+                % u (right)
+                ax = nexttile(t,(i-1)*2+2);
+                surf(ax, Xd, Yd, 0*u, u, 'EdgeColor','none');
+                set(ax,'YDir','reverse'); view(ax,2); axis(ax,'equal','tight');
+                colormap(ax, parula); obj.setCbar(ax,'u');
+                obj.symClim(ax, u); grid(ax,'off');
+                xlabel(ax,'x','FontWeight','bold','FontSize',obj.AX_LABEL_FS);
+                ylabel(ax,'y','FontWeight','bold','FontSize',obj.AX_LABEL_FS);
+                % title(ax, sprintf('h/l=%.3g, N=%d (u)', plates(i).S^-1, Nmode));
+            end
         end
 
         function plot_stresses(obj)
-            plate = obj.plate;
-            Nmode_wholeplot = obj.mode_list(end);
-
-            % solve and build deformed coords
-            [u,v,xv,yv,sigx,sigy,tauxy] = plate.solve_plate...
-                (Nmode_wholeplot);
-            [X,Y] = meshgrid(xv,yv);
-
-            mag = sqrt(u.^2 + v.^2);
-            sf  = 0.15 * max(plate.l,plate.h) / max(mag(:) + eps);
-            Xd = X + sf*u;   Yd = Y + sf*v;
+            plates = obj.plates;  nP = numel(plates);
+            Nmode  = obj.mode_list(end);
 
             figure('Name','Stress distributions (deformed grid)');
+            t = tiledlayout(nP,3,'Padding','compact','TileSpacing','compact');
 
-            % σx
-            subplot(1,3,1);
-            surf(Xd, Yd, 0*sigx, sigx, 'EdgeColor','none');
-            view(2); axis equal tight; colorbar;
-            cmax = max(abs(sigx(:))); if cmax>0, caxis([-cmax cmax]); end
-            xlabel('x'); ylabel('y'); title('\sigma_x');
-            set(gca,'YDir','reverse')
+            for i = 1:nP
+                [u,v,xv,yv,sigx,sigy,tauxy] = plates(i).solve_plate(Nmode);
+                [X,Y] = meshgrid(xv,yv);
+                mag = sqrt(u.^2 + v.^2);
+                sf  = 0.15 * max(plates(i).l, plates(i).h) / max(mag(:)+eps);
+                Xd  = X + sf*u;   Yd = Y + sf*v;
 
-            % σy
-            subplot(1,3,2);
-            surf(Xd, Yd, 0*sigy, sigy, 'EdgeColor','none');
-            view(2); axis equal tight; colorbar;
-            cmax = max(abs(sigy(:))); if cmax>0, caxis([-cmax cmax]); end
-            xlabel('x'); ylabel('y'); title('\sigma_y');
-            set(gca,'YDir','reverse')
+                % σx
+                ax = nexttile(t,(i-1)*3+1);
+                surf(ax, Xd, Yd, 0*sigx, sigx, 'EdgeColor','none');
+                set(ax,'YDir','reverse'); view(ax,2); axis(ax,'equal','tight');
+                obj.symClim(ax, sigx); grid(ax,'off'); obj.setCbar(ax,'\sigma_x');
+                xlabel(ax,'x','FontWeight','bold','FontSize',obj.AX_LABEL_FS);
+                ylabel(ax,'y','FontWeight','bold','FontSize',obj.AX_LABEL_FS);
+                % title(ax, sprintf('\\sigma_x (S=%.3g)', plates(i).S^-1));
 
-            % τxy
-            subplot(1,3,3);
-            surf(Xd, Yd, 0*tauxy, tauxy, 'EdgeColor','none');
-            view(2); axis equal tight; colorbar;
-            cmax = max(abs(tauxy(:))); if cmax>0, caxis([-cmax cmax]); end
-            xlabel('x'); ylabel('y'); title('\tau_{xy}');
-            set(gca,'YDir','reverse')
+                % σy
+                ax = nexttile(t,(i-1)*3+2);
+                surf(ax, Xd, Yd, 0*sigy, sigy, 'EdgeColor','none');
+                set(ax,'YDir','reverse'); view(ax,2); axis(ax,'equal','tight');
+                obj.symClim(ax, sigy); grid(ax,'off'); obj.setCbar(ax,'\sigma_y');
+                xlabel(ax,'x','FontWeight','bold','FontSize',obj.AX_LABEL_FS);
+                ylabel(ax,'y','FontWeight','bold','FontSize',obj.AX_LABEL_FS);
+                % title(ax, sprintf('\\sigma_y'));
+
+                % τxy
+                ax = nexttile(t,(i-1)*3+3);
+                surf(ax, Xd, Yd, 0*tauxy, tauxy, 'EdgeColor','none');
+                set(ax,'YDir','reverse'); view(ax,2); axis(ax,'equal','tight');
+                obj.symClim(ax, tauxy); grid(ax,'off'); obj.setCbar(ax,'\tau_{xy}');
+                xlabel(ax,'x','FontWeight','bold','FontSize',obj.AX_LABEL_FS);
+                ylabel(ax,'y','FontWeight','bold','FontSize',obj.AX_LABEL_FS);
+                % title(ax, sprintf('\\tau_{xy}'));
+            end
+        end
+    end
+
+    methods (Access=private)
+        function setCbar(obj, ax, label)
+            cb = colorbar(ax);
+            cb.Label.String     = label;
+            cb.Label.FontWeight = 'bold';
+            cb.Label.FontSize   = obj.CB_LABEL_FS;   % larger “ruler title”
+            cb.FontWeight       = 'bold';            % bold tick labels
+            cb.FontSize         = obj.CB_TICK_FS;    % tick size
+        end
+
+        function symClim(~, ax, Z)
+            cmax = max(abs(Z(:)));
+            if cmax>0, clim(ax,[-cmax cmax]); end
         end
     end
 end

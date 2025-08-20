@@ -1,0 +1,114 @@
+classdef Plotter
+    properties
+        plates
+        mode_list
+    end
+    methods
+        function obj = Plotter(plates, mode_list)
+            obj.plates     = plates;
+            obj.mode_list  = mode_list;
+        end
+
+        function plot_displacement(obj)
+            plates = obj.plates;  mode_list = obj.mode_list;
+            Nmode_wholeplot = mode_list(end);
+            nP = numel(plates);
+
+            % --- Figure 1: v(x,0) vs N ---
+            figure('Name','v(x,0) vs N'); hold on;
+
+            leg = strings(1,numel(mode_list));
+            [~,v,xv_plot,yv_plot] = plates(1).solve_plate(mode_list(1));
+            [~,iy0] = min(abs(yv_plot-0));
+
+            for j = 1:numel(mode_list)
+                Nmode = mode_list(j);
+                [~,v,xv_plot,~] = plates(1).solve_plate(Nmode);
+                plot(xv_plot, v(iy0,:), 'LineWidth', 1.4);
+                leg(j) = sprintf('N = %d', Nmode);
+            end
+
+            grid off; xlabel('x'); ylabel('v(x,0)');
+            title('v(x,0) Midline Deflection for Multiple Truncations');
+            legend(leg, 'Location','best'); hold off;
+            set(gca,'YDir','reverse');
+
+            % --- Figure 2: deformed field colored by v/u for each plate ---
+            figure('Name','Deformed field (v and u)'); 
+            t = tiledlayout(nP,2,'Padding','compact','TileSpacing','compact');
+            for i = 1:nP
+                [u,v,xv,yv] = plates(i).solve_plate(Nmode_wholeplot);
+                [X,Y] = meshgrid(xv,yv);
+
+                Xd = X + u;   Yd = Y + v;
+
+                % v-plot (left column)
+                ax = nexttile(t,(i-1)*2+1);
+                surf(ax, Xd, Yd, 0*v, v, 'EdgeColor','none');
+                set(ax,'YDir','reverse'); view(ax,2); axis(ax,'equal','tight');
+                colormap(ax, parula); cb1 = colorbar(ax); cb1.Label.String = 'v';
+                cmaxV = max(abs(v(:))); if cmaxV>0, clim(ax,[-cmaxV cmaxV]); end
+                grid off;
+                xlabel(ax,'x','FontWeight','bold');
+                ylabel(ax,'y','FontWeight','bold');
+                title(ax, sprintf('h/l=%.3g, N=%d (v)', plates(i).S^-1,...
+                    Nmode_wholeplot));
+
+                % u-plot (right column)
+                ax = nexttile(t,(i-1)*2+2);
+                surf(ax, Xd, Yd, 0*u, u, 'EdgeColor','none');
+                set(ax,'YDir','reverse'); view(ax,2); axis(ax,'equal','tight');
+                colormap(ax, parula); cb2 = colorbar(ax); cb2.Label.String = 'u';
+                cmaxU = max(abs(u(:))); if cmaxU>0, clim(ax,[-cmaxU cmaxU]); end
+                grid off;
+                xlabel(ax,'x','FontWeight','bold');
+                ylabel(ax,'y','FontWeight','bold');
+                title(ax, sprintf('h/l=%.3g, N=%d (u)', plates(i).S^-1,...
+                    Nmode_wholeplot));
+            end
+        end
+
+        function plot_stresses(obj)
+            plates = obj.plates; nP = numel(plates);
+            Nmode_wholeplot = obj.mode_list(end);
+
+            figure('Name','Stress distributions (deformed grid)');
+            t = tiledlayout(nP,3,'Padding','compact','TileSpacing','compact');
+
+            for i = 1:nP
+                [u,v,xv,yv,sigx,sigy,tauxy] = plates(i).solve_plate(Nmode_wholeplot);
+                [X,Y] = meshgrid(xv,yv);
+
+                Xd = X + u;   Yd = Y + v;
+
+                % sigma_x
+                ax = nexttile(t,(i-1)*3+1);
+                surf(ax, Xd, Yd, 0*sigx, sigx, 'EdgeColor','none');
+                set(ax,'YDir','reverse'); view(ax,2); axis(ax,'equal','tight');
+                cmax = max(abs(sigx(:))); if cmax>0, clim(ax,[-cmax cmax]); end
+                grid off; colorbar(ax);
+                xlabel(ax,'x','FontWeight','bold');
+                ylabel(ax,'y','FontWeight','bold');
+                title(ax, sprintf('\\sigma_x (S=%.3g)', plates(i).S^-1));
+
+                % sigma_y
+                ax = nexttile(t,(i-1)*3+2);
+                surf(ax, Xd, Yd, 0*sigy, sigy, 'EdgeColor','none');
+                set(ax,'YDir','reverse'); view(ax,2); axis(ax,'equal','tight');
+                cmax = max(abs(sigy(:))); if cmax>0, clim(ax,[-cmax cmax]); end
+                grid off; colorbar(ax);
+                xlabel(ax,'x','FontWeight','bold');
+                ylabel(ax,'y','FontWeight','bold');
+                title(ax, sprintf('\\sigma_y'));
+
+                % tau_xy
+                ax = nexttile(t,(i-1)*3+3);
+                surf(ax, Xd, Yd, 0*tauxy, tauxy, 'EdgeColor','none');
+                set(ax,'YDir','reverse'); view(ax,2); axis(ax,'equal','tight');
+                cmax = max(abs(tauxy(:))); if cmax>0, clim(ax,[-cmax cmax]); end
+                grid off; colorbar(ax); xlabel(ax,'x'); ylabel(ax,'y');
+                title(ax, sprintf('\\tau_{xy}'));
+            end
+        end
+    end
+end

@@ -1,7 +1,7 @@
 classdef Plate
     properties (Constant)
         h  = 0.5;   % half-thickness (total = 2h)
-        E  = 10.0;
+        E  = 50.0;
         nu = 0.20;
         w0 = 1;
     end
@@ -39,7 +39,7 @@ classdef Plate
             dx = xv(2)-xv(1);
             dy = yv(2)-yv(1);
 
-            [~,iy0] = min(abs(yv-0));
+            [~,iy0] = min(abs(yv));
             ixL = Nx;
 
             % Fourier of w(x) = w0 * exp(k*x/l)
@@ -133,15 +133,16 @@ classdef Plate
             Nx = obj.Nx;Ny = obj.Ny;h = obj.h;
         
             G = E/(2*(1+nu));
-            xv = linspace(0,l,Nx);  yv = linspace(-h,h,Ny);
+            xv = linspace(0, l, Nx);  yv = linspace(-h, h, Ny);
             [X,Y] = meshgrid(xv,yv);
             dx = xv(2)-xv(1);   dy = yv(2)-yv(1);
         
-            [~,iy0] = min(abs(yv-0));
+            [~,iy0] = min(abs(yv));
             ixL = Nx;
         
-            % solve BCs
             alpha = k/l;
+            w_eff = -w0;
+        
             s = sin(alpha*h);
             c = cos(alpha*h);
             den1 = (alpha*h + s*c);
@@ -151,43 +152,43 @@ classdef Plate
         
             if use_closed_form
                 % Closed-form constants (fast, stable away from resonance)
-                A =  w0*(alpha*h*c + s) / (2*alpha^2*den1);
-                B = -w0*c / (2*alpha*den2);
-                C = -w0*(alpha*h*s - c) / (2*alpha^2*den2);
-                D =  w0*s / (2*alpha*den1);
+                A =  w_eff*(alpha*h*c + s) / (2*alpha^2*den1);
+                B = -w_eff*c / (2*alpha*den2);
+                C = -w_eff*(alpha*h*s - c) / (2*alpha^2*den2);
+                D =  w_eff*s / (2*alpha*den1);
             else
-                % Fallback: robust 4x4 solve right at/near resonant alpha*h
-                % Unknowns: [A;B;C;D]
+                % Fallback: robust 4x4 solve near resonant alpha*h
                 cy = @(yy) cos(alpha*yy);
                 sy = @(yy) sin(alpha*yy);
                 % f(y)   = (A+B*y)cos + (C+D*y)sin
                 % f'(y)  = [B+alpha(C+D*y)]cos + [D - alpha(A+B*y)]sin
                 M = [ ...
-                    cy(-h),     (-h)*cy(-h),  sy(-h),     (-h)*sy(-h); % f(-h) = w0/alpha^2
-                    cy( h),     ( h)*cy( h),  sy( h),     ( h)*sy( h); % f( h) = 0
-                    -alpha*sy( h), cy( h)-alpha*h*sy( h), alpha*cy( h),...
-                    sy( h)+alpha*h*cy( h); % f'(h)=0
-                    -alpha*sy(-h), cy(-h)-alpha*(-h)*sy(-h),...
-                    alpha*cy(-h), sy(-h)+alpha*(-h)*cy(-h) % f'(-h)=0
+                    cy(-h), (-h)*cy(-h), sy(-h), (-h)*sy(-h);   % f(-h) = w_eff/alpha^2
+                    cy( h), ( h)*cy( h), sy( h), ( h)*sy( h);   % f( h) = 0
+                    -alpha*sy( h), cy( h)-alpha*h*sy( h), alpha*cy( h), ...
+                                   sy( h)+alpha*h*cy( h);       % f'( h)=0
+                    -alpha*sy(-h), cy(-h)+alpha*h*sy(-h), alpha*cy(-h), ...
+                                   sy(-h)-alpha*h*cy(-h)        % f'(-h)=0
                 ];
-                rhs = [w0/alpha^2; 0; 0; 0];
+                rhs = [w_eff/alpha^2; 0; 0; 0];
                 sol = M\rhs;
                 A = sol(1); B = sol(2); C = sol(3); D = sol(4);
             end
         
-            % f, f', f'' on the whole grid
+            % ---- f, f', f'' on the whole grid ----
             cy = cos(alpha*Y);   sy = sin(alpha*Y);
             f   = (A + B.*Y).*cy + (C + D.*Y).*sy;
             fp  = (B + alpha*(C + D.*Y)).*cy + (D - alpha*(A + B.*Y)).*sy;
-            fpp = (alpha*(2*D - alpha*A) - alpha^2*B.*Y).*cy + (-alpha*(2*B + alpha*C) - alpha^2*D.*Y).*sy;
+            fpp = (alpha*(2*D - alpha*A) - alpha^2*B.*Y).*cy + ...
+                  (-alpha*(2*B + alpha*C) - alpha^2*D.*Y).*sy;
         
-            % Stresses from Airy
+            % ---- Stresses from Airy ----
             expax  = exp(alpha*X);
-            sigx   = expax .* fpp;         % sigma_x = d2(phi)/dy2
-            sigy   = alpha^2 * expax .* f; % sigma_y = d2(phi)/dx2
-            tauxy  = -alpha  * expax .* fp;% tau_xy  = -d2(phi)/(dx dy)
+            sigx   = expax .* fpp;          % sigma_x = d2(phi)/dy2
+            sigy   = alpha^2 * expax .* f;  % sigma_y = d2(phi)/dx2
+            tauxy  = -alpha  * expax .* fp; % tau_xy  = -d2(phi)/(dx dy)
         
-            % Strains (plane stress) and displacement integration
+            % ---- Strains (plane stress) and displacement integration ----
             epsx = (sigx - nu*sigy)/E;
             epsy = (sigy - nu*sigx)/E;
         
@@ -203,7 +204,7 @@ classdef Plate
                 v0(:,i) = vtmp - vtmp(iy0);  % enforce v0(x,0)=0
             end
         
-            % Shear compatibility correction via separated fit
+            % ---- Shear compatibility correction via separated fit ----
             [~,Uy] = gradient(u0, dx, dy);   % Uy = du/dy
             [Vx,~] = gradient(v0, dx, dy);   % Vx = dv/dx
             R = Uy + Vx - tauxy./G;
@@ -219,12 +220,57 @@ classdef Plate
             u = u0 + repmat(f1, 1, Nx);
             v = v0 + repmat(f2, Ny, 1);
         
-            % Clamp at (x=l, y=0): zero translations + zero slope v_x
+            % ---- Clamp at (x=l, y=0): zero translations + zero slope v_x ----
             u = u - u(iy0,ixL);
             v = v - v(iy0,ixL);
             Srot = (v(iy0,ixL) - v(iy0,ixL-1))/dx;
             u = u + Srot * (yv.' * ones(1,Nx));
             v = v - Srot * (ones(Ny,1) * (xv - l));
+        end
+
+        function [u,v,xv,yv,sigx,sigy,tauxy] = solve_plate_concentrated(obj, P, clampMode)
+        % Concentrated vertical load P applied at the left end (x=0).
+        % clampMode: "vx0"  -> enforce v_x(l,0)=0   (default)
+        %            "uy0"  -> enforce u_y(l,0)=0
+        
+            if nargin < 3 || isempty(clampMode), clampMode = "vx0"; end
+        
+            % geometry & material
+            l  = obj.l;      h  = obj.h;
+            E  = obj.E;      nu = obj.nu;
+            Nx = obj.Nx;     Ny = obj.Ny;
+        
+            G = E/(2*(1+nu));
+            I = (2/3)*h^3;                 % rectangular section moment
+        
+            % grid
+            xv = linspace(0,l,Nx);
+            yv = linspace(-h,h,Ny);
+            [X,Y] = meshgrid(xv,yv);
+        
+            % Stresses
+            sigx  = (P/I) .* (X.*Y);
+            sigy  = zeros(Ny,Nx);
+            tauxy = (P/(2*I)) .* (h^2 - Y.^2);
+        
+            % --- Displacements via Hooke + shear separation + clamp constants ---
+            % Two clamp variants from your derivation:
+            switch string(clampMode)
+                case "vx0"      % v_x(l,0)=0  (classic beam-style clamp)  [Eqs. (18)-(20)]
+                    u =  (P.*X.^2.*Y)/(2*E*I) ...
+                       + (nu*P*Y.^3)/(6*E*I) - (P*Y.^3)/(6*G*I) ...
+                       + ( (P*h^2)/(2*G*I) - (P*l^2)/(2*E*I) ) .* Y;                   % u1
+                    v = -(nu*P*X.*Y.^2)/(2*E*I) ...
+                       - (P*X.^3)/(6*E*I) + (P*l^2*X)/(2*E*I) - (P*l^3)/(3*E*I);       % v1
+        
+                case "uy0"      % u_y(l,0)=0
+                    u =  (P.*X.^2.*Y)/(2*E*I) ...
+                       + (nu*P*Y.^3)/(6*E*I) - (P*Y.^3)/(6*G*I) ...
+                       - (P*l^2/(2*E*I)) .* Y;                                          % u2
+                    v = -(nu*P*X.*Y.^2)/(2*E*I) ...
+                       - (P*X.^3)/(6*E*I) + (P*l^2*X)/(2*E*I) - (P*l^3)/(3*E*I) ...
+                       - (P*h^2)/(2*G*I) .* (l - X);                                    % v2
+            end
         end
 
     end

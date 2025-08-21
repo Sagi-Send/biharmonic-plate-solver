@@ -194,6 +194,72 @@ classdef Plotter
             end
         end
 
+        function plot_disp_concentrated(obj)
+            % Plot u and v (uy0 clamp) for concentrated load, side-by-side per plate
+            plates = obj.plates;
+            nP     = numel(plates);
+        
+            % ==== Figure A: v only, one row x two columns (Plate 1 vs Plate 2) ====
+            figure('Name','v (uy0) on displaced shape — concentrated load: Plate 1 vs Plate 2');
+            t = tiledlayout(2,1,'Padding','compact','TileSpacing','compact');
+            
+            nShow = min(nP,2);                          % show first two plates
+            U = cell(1,nShow); V = cell(1,nShow);
+            XV = cell(1,nShow); YV = cell(1,nShow);
+            MAG = cell(1,nShow);
+            
+            % Solve once for the plates to get a shared color scale
+            for k = 1:nShow
+                [U{k}, V{k}, XV{k}, YV{k}] = plates(k).solve_plate_concentrated("uy0");
+                MAG{k} = hypot(U{k}, V{k});
+            end
+            vabs = max( abs([V{1}(:); V{min(2,nShow)}(:)]) );
+            
+            for k = 1:nShow
+                [Xk,Yk] = meshgrid(XV{k}, YV{k});
+                sf  = 0.15 * max(plates(k).l, plates(k).h) / max([MAG{k}(:); eps]);
+            
+                ax = nexttile(t,k);
+                Xd = Xk + sf*U{k};  Yd = Yk + sf*V{k};
+                surf(ax, Xd, Yd, zeros(size(Xd)), V{k}, 'EdgeColor','none'); hold(ax,'on');
+                set(ax,'YDir','reverse'); view(ax,2); axis(ax,'equal','tight');
+                colormap(ax, parula); grid(ax,'off'); clim(ax,[-vabs vabs]);
+                obj.setCbar(ax,'v');
+                xlabel(ax,'x','FontWeight','bold','FontSize',obj.AX_LABEL_FS);
+                ylabel(ax,'y','FontWeight','bold','FontSize',obj.AX_LABEL_FS);
+                title(ax, sprintf('Plate %d', k));
+            end
+            
+            
+            % ==== Single-row figure: v(x,0) overlays for Plates 1 & 2 ====
+            figure('Name','v(x,0): vx0 vs uy0 — Plates 1 & 2');
+            t = tiledlayout(1,2,'Padding','compact','TileSpacing','compact');
+            
+            % -------- Tile 1: Plate 1 (v at y=0 vs x) --------
+            [u1,v1,xv1,yv1] = plates(1).solve_plate_concentrated("vx0");
+            [u2,v2,~,   ~ ] = plates(1).solve_plate_concentrated("uy0");
+            [~,iy0] = min(abs(yv1));  % y = 0 index
+            
+            ax = nexttile(t,1);
+            plot(ax, xv1, v1(iy0,:), 'LineWidth',1.5, 'DisplayName','v,x=0'); hold(ax,'on');
+            plot(ax, xv1, v2(iy0,:), 'LineWidth',1.5, 'DisplayName','u,y=0');
+            grid(ax,'off'); xlim(ax,[xv1(1) xv1(end)]);
+            xlabel(ax,'x','FontWeight','bold','FontSize',obj.AX_LABEL_FS);
+            ylabel(ax,'v(x,0)','FontWeight','bold','FontSize',obj.AX_LABEL_FS);
+            legend(ax,'Location','best');
+            
+            % -------- Tile 2: Plate 1 (u along y at x = l) --------
+            x0 = plates(1).l;                     % choose the section (e.g., right end)
+            [~,ix0] = min(abs(xv1 - x0));         % x index for x0
+            
+            ax = nexttile(t,2);
+            plot(ax, u1(:,ix0), yv1,  'LineWidth',1.5, 'DisplayName','v,x=0'); hold(ax,'on');
+            plot(ax, u2(:,ix0), yv1,  'LineWidth',1.5, 'DisplayName','u,y=0');
+            grid(ax,'off'); xlim(ax,[u1(1,ix0) u1(end,ix0)]);
+            xlabel(ax, sprintf('u(y, x=%.3g)', x0),'FontWeight','bold','FontSize',obj.AX_LABEL_FS);
+            ylabel(ax, 'y', 'FontWeight','bold','FontSize',obj.AX_LABEL_FS);
+            legend(ax,'Location','best');
+        end
     end
 
     methods (Access=private)

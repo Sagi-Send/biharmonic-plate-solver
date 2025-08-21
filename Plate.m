@@ -4,6 +4,7 @@ classdef Plate
         E  = 50.0;
         nu = 0.20;
         w0 = 1;
+        P = 1;
     end
     properties (Dependent)
         l                  % span; computed from S and h
@@ -226,6 +227,50 @@ classdef Plate
             Srot = (v(iy0,ixL) - v(iy0,ixL-1))/dx;
             u = u + Srot * (yv.' * ones(1,Nx));
             v = v - Srot * (ones(Ny,1) * (xv - l));
+        end
+
+        function [u,v,xv,yv,sigx,sigy,tauxy] = solve_plate_concentrated(obj, clampMode)
+        % Concentrated vertical load P applied at the left end (x=0).
+        % clampMode: "vx0"  -> enforce v_x(l,0)=0   (default)
+        %            "uy0"  -> enforce u_y(l,0)=0
+            if nargin < 2 || isempty(clampMode), clampMode = "vx0"; end
+            % geometry & material
+            l  = obj.l;      h  = obj.h;
+            E  = obj.E;      nu = obj.nu;
+            Nx = obj.Nx;     Ny = obj.Ny;
+            P = obj.P;
+        
+            G = E/(2*(1+nu));
+            I = (2/3)*h^3;                 % rectangular section moment
+        
+            % grid
+            xv = linspace(0,l,Nx);
+            yv = linspace(-h,h,Ny);
+            [X,Y] = meshgrid(xv,yv);
+        
+            % Stresses
+            sigx  = (P/I) .* (X.*Y);
+            sigy  = zeros(Ny,Nx);
+            tauxy = (P/(2*I)) .* (h^2 - Y.^2);
+        
+            % --- Displacements via Hooke + shear separation + clamp constants ---
+            % Two clamp variants from your derivation:
+            switch string(clampMode)
+                case "vx0"      % v_x(l,0)=0  (classic beam-style clamp)
+                    u =  (P.*X.^2.*Y)/(2*E*I) ...
+                       + (nu*P*Y.^3)/(6*E*I) - (P*Y.^3)/(6*G*I) ...
+                       + ( (P*h^2)/(2*G*I) - (P*l^2)/(2*E*I) ) .* Y;                   % u1
+                    v = -(nu*P*X.*Y.^2)/(2*E*I) ...
+                       - (P*X.^3)/(6*E*I) + (P*l^2*X)/(2*E*I) - (P*l^3)/(3*E*I);       % v1
+        
+                case "uy0"      % u_y(l,0)=0
+                    u =  (P.*X.^2.*Y)/(2*E*I) ...
+                       + (nu*P*Y.^3)/(6*E*I) - (P*Y.^3)/(6*G*I) ...
+                       - (P*l^2/(2*E*I)) .* Y;                                          % u2
+                    v = -(nu*P*X.*Y.^2)/(2*E*I) ...
+                       - (P*X.^3)/(6*E*I) + (P*l^2*X)/(2*E*I) - (P*l^3)/(3*E*I) ...
+                       - (P*h^2)/(2*G*I) .* (l - X);                                    % v2
+            end
         end
 
     end

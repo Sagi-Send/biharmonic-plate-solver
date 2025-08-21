@@ -4,9 +4,9 @@ classdef Plotter
         mode_list
     end
     properties (Constant, Access=private)
-        CB_LABEL_FS = 14;     % colorbar title size
-        CB_TICK_FS  = 11;     % colorbar tick size
-        AX_LABEL_FS = 12;     % axes label size
+        CB_LABEL_FS = 16;     % colorbar title size
+        CB_TICK_FS  = 13;     % colorbar tick size
+        AX_LABEL_FS = 14;     % axes label size
     end
 
     methods
@@ -115,49 +115,37 @@ classdef Plotter
             plates = obj.plates;
             nP     = numel(plates);
         
-            % --- Figure: deformed field colored by v/u for each plate ---
             figure('Name','Deformed field (v and u)');
             t = tiledlayout(nP,2,'Padding','compact','TileSpacing','compact');
         
-            % Precompute to get global deformation and color scales
-            U = cell(1,nP); V = cell(1,nP); XV = cell(1,nP); YV = cell(1,nP);
-            maxGeom = 0; maxMagAll = 0; Umax = 0; Vmax = 0;
             for i = 1:nP
                 [u,v,xv,yv] = plates(i).solve_plate_exp();
-                U{i}=u; V{i}=v; XV{i}=xv; YV{i}=yv;
-                maxGeom   = max([maxGeom, plates(i).l, plates(i).h]);
-                maxMagAll = max(maxMagAll, max(sqrt(u(:).^2 + v(:).^2)));
-                Umax      = max(Umax, max(abs(u(:))));
-                Vmax      = max(Vmax, max(abs(v(:))));
-            end
-            sf_global = 0.15 * maxGeom / max(maxMagAll, eps);
-            climU = [-Umax, Umax];
-            climV = [-Vmax, Vmax];
-        
-            for i = 1:nP
-                u = U{i}; v = V{i}; xv = XV{i}; yv = YV{i};
                 [X,Y] = meshgrid(xv,yv);
-                Xd  = X + sf_global*u;   Yd = Y + sf_global*v;
+                mag = sqrt(u.^2 + v.^2);
+                sf  = 0.15 * max(plates(i).l, plates(i).h) / max(mag(:)+eps);
+                Xd  = X + sf*u;   Yd = Y + sf*v;
         
                 % v (left)
                 ax = nexttile(t,(i-1)*2+1);
                 surf(ax, Xd, Yd, 0*v, v, 'EdgeColor','none');
                 view(ax,2); axis(ax,'equal','tight');
                 colormap(ax, parula); obj.setCbar(ax,'v');
-                caxis(ax,climV); grid(ax,'off');   % global color limits
-        
+                obj.symClim(ax, v); grid(ax,'off');
+                set(ax,'FontSize',obj.CB_TICK_FS);
                 xlabel(ax,'x','FontWeight','bold','FontSize',obj.AX_LABEL_FS);
                 ylabel(ax,'y','FontWeight','bold','FontSize',obj.AX_LABEL_FS);
+                set(gca,'YDir','reverse');
         
                 % u (right)
                 ax = nexttile(t,(i-1)*2+2);
                 surf(ax, Xd, Yd, 0*u, u, 'EdgeColor','none');
                 view(ax,2); axis(ax,'equal','tight');
                 colormap(ax, parula); obj.setCbar(ax,'u');
-                caxis(ax,climU); grid(ax,'off');   % global color limits
-        
+                obj.symClim(ax, u); grid(ax,'off');
+                set(ax,'FontSize',obj.CB_TICK_FS);
                 xlabel(ax,'x','FontWeight','bold','FontSize',obj.AX_LABEL_FS);
                 ylabel(ax,'y','FontWeight','bold','FontSize',obj.AX_LABEL_FS);
+                set(gca,'YDir','reverse');
             end
         end
 
@@ -167,56 +155,136 @@ classdef Plotter
             figure('Name','Stress distributions (deformed grid)');
             t = tiledlayout(nP,3,'Padding','compact','TileSpacing','compact');
         
-            % Precompute to get global deformation and color scales
-            U = cell(1,nP); V = cell(1,nP); XV = cell(1,nP); YV = cell(1,nP);
-            SX = cell(1,nP); SY = cell(1,nP); TXY = cell(1,nP);
-            maxGeom = 0; maxMagAll = 0; SxMax = 0; SyMax = 0; TxyMax = 0;
-        
             for i = 1:nP
                 [u,v,xv,yv,sigx,sigy,tauxy] = plates(i).solve_plate_exp();
-                U{i}=u; V{i}=v; XV{i}=xv; YV{i}=yv;
-                SX{i}=sigx; SY{i}=sigy; TXY{i}=tauxy;
-        
-                maxGeom   = max([maxGeom, plates(i).l, plates(i).h]);
-                maxMagAll = max(maxMagAll, max(sqrt(u(:).^2 + v(:).^2)));
-                SxMax = max(SxMax, max(abs(sigx(:))));
-                SyMax = max(SyMax, max(abs(sigy(:))));
-                TxyMax= max(TxyMax, max(abs(tauxy(:))));
-            end
-            sf_global = 0.15 * maxGeom / max(maxMagAll, eps);
-            climX  = [-SxMax,  SxMax];
-            climY  = [-SyMax,  SyMax];
-            climXY = [-TxyMax, TxyMax];
-        
-            for i = 1:nP
-                u = U{i}; v = V{i}; xv = XV{i}; yv = YV{i};
-                sigx = SX{i}; sigy = SY{i}; tauxy = TXY{i};
                 [X,Y] = meshgrid(xv,yv);
-                Xd  = X + sf_global*u;   Yd = Y + sf_global*v;
+                mag = sqrt(u.^2 + v.^2);
+                sf  = 0.15 * max(plates(i).l, plates(i).h) / max(mag(:)+eps);
+                Xd  = X + sf*u;   Yd = Y + sf*v;
         
                 % σx
                 ax = nexttile(t,(i-1)*3+1);
                 surf(ax, Xd, Yd, 0*sigx, sigx, 'EdgeColor','none');
                 view(ax,2); axis(ax,'equal','tight');
-                caxis(ax,climX); grid(ax,'off'); obj.setCbar(ax,'\sigma_x');
+                obj.symClim(ax, sigx); grid(ax,'off'); obj.setCbar(ax,'\sigma_x');
+                set(ax,'FontSize',obj.CB_TICK_FS);
                 xlabel(ax,'x','FontWeight','bold','FontSize',obj.AX_LABEL_FS);
                 ylabel(ax,'y','FontWeight','bold','FontSize',obj.AX_LABEL_FS);
+                set(gca,'YDir','reverse');
         
                 % σy
                 ax = nexttile(t,(i-1)*3+2);
                 surf(ax, Xd, Yd, 0*sigy, sigy, 'EdgeColor','none');
                 view(ax,2); axis(ax,'equal','tight');
-                caxis(ax,climY); grid(ax,'off'); obj.setCbar(ax,'\sigma_y');
+                obj.symClim(ax, sigy); grid(ax,'off'); obj.setCbar(ax,'\sigma_y');
+                set(ax,'FontSize',obj.CB_TICK_FS);
                 xlabel(ax,'x','FontWeight','bold','FontSize',obj.AX_LABEL_FS);
                 ylabel(ax,'y','FontWeight','bold','FontSize',obj.AX_LABEL_FS);
+                set(gca,'YDir','reverse');
         
                 % τxy
                 ax = nexttile(t,(i-1)*3+3);
                 surf(ax, Xd, Yd, 0*tauxy, tauxy, 'EdgeColor','none');
                 view(ax,2); axis(ax,'equal','tight');
-                caxis(ax,climXY); grid(ax,'off'); ob
-        
+                obj.symClim(ax, tauxy); grid(ax,'off'); obj.setCbar(ax,'\tau_{xy}');
+                set(ax,'FontSize',obj.CB_TICK_FS);
+                xlabel(ax,'x','FontWeight','bold','FontSize',obj.AX_LABEL_FS);
+                ylabel(ax,'y','FontWeight','bold','FontSize',obj.AX_LABEL_FS);
+                set(gca,'YDir','reverse');
             end
+        end
+
+        function plot_disp_concentrated(obj)
+            % Plot u and v (uy0 clamp) for concentrated load, side-by-side per plate
+            plates = obj.plates;
+
+            figure('Name','u & v (uy0) on displaced shape — concentrated load');
+            t = tiledlayout(nP,2,'Padding','compact','TileSpacing','compact');
+        
+            for i = 1:nP
+                % Solve only the uy0 clamp case
+                [u,v,xv,yv] = plates(i).solve_plate_concentrated("uy0");
+                [X,Y] = meshgrid(xv,yv);
+        
+                % Deformation scale based on ||u||
+                mag = hypot(u,v);
+                sf  = 0.15 * max(plates(i).l, plates(i).h) / max([mag(:); eps]);
+        
+                % Symmetric color limits per component
+                uabs = max(abs(u(:)));  vabs = max(abs(v(:)));
+        
+                % --- Left tile: u(x,y)
+                ax = nexttile(t,(i-1)*2+1);
+                Xd = X + sf*u;  Yd = Y + sf*v;
+                surf(ax, Xd, Yd, zeros(size(Xd)), u, 'EdgeColor','none'); hold(ax,'on');
+                set(ax,'YDir','reverse'); view(ax,2); axis(ax,'equal','tight');
+                colormap(ax, parula); grid(ax,'off'); clim(ax,[-uabs uabs]);
+                obj.setCbar(ax,'u');
+                xlabel(ax,'x','FontWeight','bold','FontSize',obj.AX_LABEL_FS);
+                ylabel(ax,'y','FontWeight','bold','FontSize',obj.AX_LABEL_FS);
+        
+                % --- Right tile: v(x,y)
+                ax = nexttile(t,(i-1)*2+2);
+                Xd = X + sf*u;  Yd = Y + sf*v;
+                surf(ax, Xd, Yd, zeros(size(Xd)), v, 'EdgeColor','none'); hold(ax,'on');
+                set(ax,'YDir','reverse'); view(ax,2); axis(ax,'equal','tight');
+                colormap(ax, parula); grid(ax,'off'); clim(ax,[-vabs vabs]);
+                obj.setCbar(ax,'v');
+                xlabel(ax,'x','FontWeight','bold','FontSize',obj.AX_LABEL_FS);
+                ylabel(ax,'y','FontWeight','bold','FontSize',obj.AX_LABEL_FS);
+            end
+        
+            % ==== Figure B: NEW — line plots at y=0 for vx0 vs. uy0 (+ differences) ====
+            figure('Name','u(x,0) & v(x,0): vx0 vs uy0 (+ off-midline & Δ||ε||) — concentrated load');
+        
+                % Solve both clamp variants
+                [u1,v1,xv,yv] = plates(i).solve_plate_concentrated("vx0");
+                [u2,v2,~, ~ ] = plates(i).solve_plate_concentrated("uy0");
+                [X,Y] = meshgrid(xv,yv);
+        
+                % y=0 index and off-midline cut
+                [~,iy0] = min(abs(yv));
+                yc = 0.4*plates(i).h;
+                [~,iyp] = min(abs(yv - yc));
+                [~,iym] = min(abs(yv + yc));
+        
+                % v(x,0) overlay (vx0 vs uy0)
+                ax = nexttile(t2,(i-1)*3+2);
+                plot(ax, xv, v1(iy0,:), 'LineWidth',1.4, 'DisplayName','vx0'); hold(ax,'on');
+                plot(ax, xv, v2(iy0,:), 'LineWidth',1.4, 'DisplayName','uy0');
+                grid(ax,'on'); xlim(ax,[xv(1) xv(end)]);
+                xlabel(ax,'x','FontWeight','bold','FontSize',obj.AX_LABEL_FS);
+                ylabel(ax,'v(x,0)','FontWeight','bold','FontSize',obj.AX_LABEL_FS);
+                legend(ax,'Location','best'); title(ax,'v at y=0');
+        
+                % Strain-norm difference at y=0 (rigid-free metric)
+                dx = xv(2)-xv(1);  dy = yv(2)-yv(1);
+                % central differences in x at y=0
+                du1dx = gradient(u1(iy0,:), dx);  dv1dx = gradient(v1(iy0,:), dx);
+                du2dx = gradient(u2(iy0,:), dx);  dv2dx = gradient(v2(iy0,:), dx);
+                % central differences in y around y=0
+                if iy0>1 && iy0<numel(yv)
+                    du1dy = (u1(iy0+1,:)-u1(iy0-1,:))/(2*dy);
+                    dv1dy = (v1(iy0+1,:)-v1(iy0-1,:))/(2*dy);
+                    du2dy = (u2(iy0+1,:)-u2(iy0-1,:))/(2*dy);
+                    dv2dy = (v2(iy0+1,:)-v2(iy0-1,:))/(2*dy);
+                else
+                    % fallback to one-sided if needed
+                    du1dy = gradient(u1(:,round(end/2)), dy).'; du1dy = du1dy(iy0)*ones(size(xv));
+                    dv1dy = gradient(v1(:,round(end/2)), dy).'; dv1dy = dv1dy(iy0)*ones(size(xv));
+                    du2dy = gradient(u2(:,round(end/2)), dy).'; du2dy = du2dy(iy0)*ones(size(xv));
+                    dv2dy = gradient(v2(:,round(end/2)), dy).'; dv2dy = dv2dy(iy0)*ones(size(xv));
+                end
+        
+                yline(ax,0,'Color',[0.4 0.4 0.4],'LineWidth',0.5,'HandleVisibility','off');
+                grid(ax,'on'); xlim(ax,[xv(1) xv(end)]);
+                xlabel(ax,'x','FontWeight','bold','FontSize',obj.AX_LABEL_FS);
+                ylabel(ax,'Δ','FontWeight','bold','FontSize',obj.AX_LABEL_FS);
+                title(ax,'off-midline Δu,Δv & Δ||ε||'); legend(ax,'Location','best');
+        end
+
+
+    end
 
     methods (Access=private)
         function setCbar(obj, ax, label)

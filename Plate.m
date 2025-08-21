@@ -1,9 +1,9 @@
 classdef Plate
     properties (Constant)
         h  = 0.5;   % half-thickness (total = 2h)
-        E  = 20.0;
+        E  = 50.0;
         nu = 0.20;
-        w0 = 1.0;
+        w0 = 1;
     end
     properties (Dependent)
         l                  % span; computed from S and h
@@ -26,7 +26,7 @@ classdef Plate
         end
 
         % ---- solver: returns u,v, grids, and stresses ----
-        function [u,v,xv,yv,sigx,sigy,tauxy] = solve_plate(obj, Nmode)
+        function [u,v,xv,yv,sigx,sigy,tauxy] = solve_plate_Fourier(obj, Nmode)
             k = obj.k;  l = obj.l;  E = obj.E;  nu = obj.nu;  w0 = obj.w0;
             Nx = obj.Nx; Ny = obj.Ny; h = obj.h;
 
@@ -39,7 +39,7 @@ classdef Plate
             dx = xv(2)-xv(1);
             dy = yv(2)-yv(1);
 
-            [~,iy0] = min(abs(yv-0));
+            [~,iy0] = min(abs(yv));
             ixL = Nx;
 
             % Fourier of w(x) = w0 * exp(k*x/l)
@@ -49,7 +49,8 @@ classdef Plate
             bn = (exp(k)-1)*w0*(4*pi*n) ./ (k^2 + (2*pi*n).^2);
 
             % n=0 stresses
-            sigx  = (a0/(2*I))*((l - X).*X.*Y) + (a0/(2*I))*((2/3)*Y.^3 - (2/5)*h^2.*Y);
+            sigx  = (a0/(2*I))*((l - X).*X.*Y) + ...
+                (a0/(2*I))*((2/3)*Y.^3 - (2/5)*h^2.*Y);
             sigy  = -(a0/(2*I))*((1/3)*Y.^3 - h^2.*Y + (2/3)*h^3);
             tauxy = -(a0/(2*I))*((h^2 - Y.^2).*(X - l/2));
 
@@ -73,14 +74,18 @@ classdef Plate
                 % a_n (cos family)
                 sigx  = sigx  + an(m).*cX .* A11;
                 sigy  = sigy  + an(m).*cX .* A12;
-                tauxy = tauxy + an(m).*sX .* ( (ah*ch).*sy - alpha*Y.*cy.*sh )/Dp ...
-                              - an(m).*sX .* ( (ah*sh).*cy - alpha*Y.*sy.*ch )/Dm;
+                tauxy = tauxy + an(m).*sX .* ...
+                    ( (ah*ch).*sy - alpha*Y.*cy.*sh )/Dp ...
+                              - an(m).*sX .* ...
+                              ( (ah*sh).*cy - alpha*Y.*sy.*ch )/Dm;
 
                 % b_n (sin family)
                 sigx  = sigx  + bn(m).*sX .* A11;
                 sigy  = sigy  + bn(m).*sX .* A12;
-                tauxy = tauxy + bn(m).*cX .* ( (ah*sh).*cy - alpha*Y.*sy.*ch )/Dm ...
-                              - bn(m).*cX .* ( (ah*ch).*sy - alpha*Y.*cy.*sh )/Dp;
+                tauxy = tauxy + bn(m).*cX .* ...
+                    ( (ah*sh).*cy - alpha*Y.*sy.*ch )/Dm ...
+                              - bn(m).*cX .* ...
+                              ( (ah*ch).*sy - alpha*Y.*cy.*sh )/Dp;
             end
 
             % strains (plane stress) -> integrate to u0,v0
@@ -122,5 +127,106 @@ classdef Plate
             u = u + Srot * (yv.' * ones(1,Nx));
             v = v - Srot * (ones(Ny,1) * (xv - l));
         end
+
+        function [u,v,xv,yv,sigx,sigy,tauxy] = solve_plate_exp(obj)
+            k = obj.k;  l = obj.l;  E = obj.E;  nu = obj.nu;  w0 = obj.w0;
+            Nx = obj.Nx;Ny = obj.Ny;h = obj.h;
+        
+            G = E/(2*(1+nu));
+            xv = linspace(0, l, Nx);  yv = linspace(-h, h, Ny);
+            [X,Y] = meshgrid(xv,yv);
+            dx = xv(2)-xv(1);   dy = yv(2)-yv(1);
+        
+            [~,iy0] = min(abs(yv));
+            ixL = Nx;
+        
+            alpha = k/l;
+            w_eff = -w0;
+        
+            s = sin(alpha*h);
+            c = cos(alpha*h);
+            den1 = (alpha*h + s*c);
+            den2 = (alpha*h - s*c);
+        
+            use_closed_form = (abs(den1) > 1e-10) && (abs(den2) > 1e-10);
+        
+            if use_closed_form
+                % Closed-form constants (fast, stable away from resonance)
+                A =  w_eff*(alpha*h*c + s) / (2*alpha^2*den1);
+                B = -w_eff*c / (2*alpha*den2);
+                C = -w_eff*(alpha*h*s - c) / (2*alpha^2*den2);
+                D =  w_eff*s / (2*alpha*den1);
+            else
+                % Fallback: robust 4x4 solve near resonant alpha*h
+                cy = @(yy) cos(alpha*yy);
+                sy = @(yy) sin(alpha*yy);
+                % f(y)   = (A+B*y)cos + (C+D*y)sin
+                % f'(y)  = [B+alpha(C+D*y)]cos + [D - alpha(A+B*y)]sin
+                M = [ ...
+                    cy(-h), (-h)*cy(-h), sy(-h), (-h)*sy(-h);   % f(-h) = w_eff/alpha^2
+                    cy( h), ( h)*cy( h), sy( h), ( h)*sy( h);   % f( h) = 0
+                    -alpha*sy( h), cy( h)-alpha*h*sy( h), alpha*cy( h), ...
+                                   sy( h)+alpha*h*cy( h);       % f'( h)=0
+                    -alpha*sy(-h), cy(-h)+alpha*h*sy(-h), alpha*cy(-h), ...
+                                   sy(-h)-alpha*h*cy(-h)        % f'(-h)=0
+                ];
+                rhs = [w_eff/alpha^2; 0; 0; 0];
+                sol = M\rhs;
+                A = sol(1); B = sol(2); C = sol(3); D = sol(4);
+            end
+        
+            % ---- f, f', f'' on the whole grid ----
+            cy = cos(alpha*Y);   sy = sin(alpha*Y);
+            f   = (A + B.*Y).*cy + (C + D.*Y).*sy;
+            fp  = (B + alpha*(C + D.*Y)).*cy + (D - alpha*(A + B.*Y)).*sy;
+            fpp = (alpha*(2*D - alpha*A) - alpha^2*B.*Y).*cy + ...
+                  (-alpha*(2*B + alpha*C) - alpha^2*D.*Y).*sy;
+        
+            % ---- Stresses from Airy ----
+            expax  = exp(alpha*X);
+            sigx   = expax .* fpp;          % sigma_x = d2(phi)/dy2
+            sigy   = alpha^2 * expax .* f;  % sigma_y = d2(phi)/dx2
+            tauxy  = -alpha  * expax .* fp; % tau_xy  = -d2(phi)/(dx dy)
+        
+            % ---- Strains (plane stress) and displacement integration ----
+            epsx = (sigx - nu*sigy)/E;
+            epsy = (sigy - nu*sigx)/E;
+        
+            u0 = zeros(Ny,Nx);
+            for j = 1:Ny
+                u0(j,:) = cumtrapz(xv, epsx(j,:));
+            end
+        
+            v0 = zeros(Ny,Nx);
+            for i = 1:Nx
+                col  = epsy(:,i);
+                vtmp = cumtrapz(yv, col);
+                v0(:,i) = vtmp - vtmp(iy0);  % enforce v0(x,0)=0
+            end
+        
+            % ---- Shear compatibility correction via separated fit ----
+            [~,Uy] = gradient(u0, dx, dy);   % Uy = du/dy
+            [Vx,~] = gradient(v0, dx, dy);   % Vx = dv/dx
+            R = Uy + Vx - tauxy./G;
+        
+            K     = mean(R(:));
+            Fbase = mean(R,1) - K;          % function of x
+            Gbase = mean(R,2).' - K;        % function of y
+        
+            f2 = -cumtrapz(xv, Fbase);  f2 = f2(:).';
+            f1 = -cumtrapz(yv, Gbase.'); f1 = f1(:);
+            f1 = f1 - f1(iy0);           % anchor f1(0)=0
+        
+            u = u0 + repmat(f1, 1, Nx);
+            v = v0 + repmat(f2, Ny, 1);
+        
+            % ---- Clamp at (x=l, y=0): zero translations + zero slope v_x ----
+            u = u - u(iy0,ixL);
+            v = v - v(iy0,ixL);
+            Srot = (v(iy0,ixL) - v(iy0,ixL-1))/dx;
+            u = u + Srot * (yv.' * ones(1,Nx));
+            v = v - Srot * (ones(Ny,1) * (xv - l));
+        end
+
     end
 end

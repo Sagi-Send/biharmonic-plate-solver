@@ -4,9 +4,9 @@ classdef Plotter
         mode_list
     end
     properties (Constant, Access=private)
-        CB_LABEL_FS = 14;     % colorbar title size
-        CB_TICK_FS  = 11;     % colorbar tick size
-        AX_LABEL_FS = 12;     % axes label size
+        CB_LABEL_FS = 16;     % colorbar title size
+        CB_TICK_FS  = 13;     % colorbar tick size
+        AX_LABEL_FS = 14;     % axes label size
     end
 
     methods
@@ -110,6 +110,90 @@ classdef Plotter
                 % title(ax, sprintf('\\tau_{xy}'));
             end
         end
+
+        function plot_displacement_exp(obj)
+            plates = obj.plates;
+            nP     = numel(plates);
+        
+            figure('Name','Deformed field (v and u)');
+            t = tiledlayout(nP,2,'Padding','compact','TileSpacing','compact');
+        
+            for i = 1:nP
+                [u,v,xv,yv] = plates(i).solve_plate_exp();
+                [X,Y] = meshgrid(xv,yv);
+                mag = sqrt(u.^2 + v.^2);
+                sf  = 0.15 * max(plates(i).l, plates(i).h) / max(mag(:)+eps);
+                Xd  = X + sf*u;   Yd = Y + sf*v;
+        
+                % v (left)
+                ax = nexttile(t,(i-1)*2+1);
+                surf(ax, Xd, Yd, 0*v, v, 'EdgeColor','none');
+                view(ax,2); axis(ax,'equal','tight');
+                colormap(ax, parula); obj.setCbar(ax,'v');
+                obj.symClim(ax, v); grid(ax,'off');
+                set(ax,'FontSize',obj.CB_TICK_FS);
+                xlabel(ax,'x','FontWeight','bold','FontSize',obj.AX_LABEL_FS);
+                ylabel(ax,'y','FontWeight','bold','FontSize',obj.AX_LABEL_FS);
+                set(gca,'YDir','reverse');
+        
+                % u (right)
+                ax = nexttile(t,(i-1)*2+2);
+                surf(ax, Xd, Yd, 0*u, u, 'EdgeColor','none');
+                view(ax,2); axis(ax,'equal','tight');
+                colormap(ax, parula); obj.setCbar(ax,'u');
+                obj.symClim(ax, u); grid(ax,'off');
+                set(ax,'FontSize',obj.CB_TICK_FS);
+                xlabel(ax,'x','FontWeight','bold','FontSize',obj.AX_LABEL_FS);
+                ylabel(ax,'y','FontWeight','bold','FontSize',obj.AX_LABEL_FS);
+                set(gca,'YDir','reverse');
+            end
+        end
+
+        function plot_stresses_exp(obj)
+            plates = obj.plates;  nP = numel(plates);
+        
+            figure('Name','Stress distributions (deformed grid)');
+            t = tiledlayout(nP,3,'Padding','compact','TileSpacing','compact');
+        
+            for i = 1:nP
+                [u,v,xv,yv,sigx,sigy,tauxy] = plates(i).solve_plate_exp();
+                [X,Y] = meshgrid(xv,yv);
+                mag = sqrt(u.^2 + v.^2);
+                sf  = 0.15 * max(plates(i).l, plates(i).h) / max(mag(:)+eps);
+                Xd  = X + sf*u;   Yd = Y + sf*v;
+        
+                % σx
+                ax = nexttile(t,(i-1)*3+1);
+                surf(ax, Xd, Yd, 0*sigx, sigx, 'EdgeColor','none');
+                view(ax,2); axis(ax,'equal','tight');
+                obj.symClim(ax, sigx); grid(ax,'off'); obj.setCbar(ax,'\sigma_x');
+                set(ax,'FontSize',obj.CB_TICK_FS);
+                xlabel(ax,'x','FontWeight','bold','FontSize',obj.AX_LABEL_FS);
+                ylabel(ax,'y','FontWeight','bold','FontSize',obj.AX_LABEL_FS);
+                set(gca,'YDir','reverse');
+        
+                % σy
+                ax = nexttile(t,(i-1)*3+2);
+                surf(ax, Xd, Yd, 0*sigy, sigy, 'EdgeColor','none');
+                view(ax,2); axis(ax,'equal','tight');
+                obj.symClim(ax, sigy); grid(ax,'off'); obj.setCbar(ax,'\sigma_y');
+                set(ax,'FontSize',obj.CB_TICK_FS);
+                xlabel(ax,'x','FontWeight','bold','FontSize',obj.AX_LABEL_FS);
+                ylabel(ax,'y','FontWeight','bold','FontSize',obj.AX_LABEL_FS);
+                set(gca,'YDir','reverse');
+        
+                % τxy
+                ax = nexttile(t,(i-1)*3+3);
+                surf(ax, Xd, Yd, 0*tauxy, tauxy, 'EdgeColor','none');
+                view(ax,2); axis(ax,'equal','tight');
+                obj.symClim(ax, tauxy); grid(ax,'off'); obj.setCbar(ax,'\tau_{xy}');
+                set(ax,'FontSize',obj.CB_TICK_FS);
+                xlabel(ax,'x','FontWeight','bold','FontSize',obj.AX_LABEL_FS);
+                ylabel(ax,'y','FontWeight','bold','FontSize',obj.AX_LABEL_FS);
+                set(gca,'YDir','reverse');
+            end
+        end
+
     end
 
     methods (Access=private)

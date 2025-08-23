@@ -162,37 +162,56 @@ classdef Plotter
                 sf  = 0.15 * max(plates(i).l, plates(i).h) / max(mag(:)+eps);
                 Xd  = X + sf*u;   Yd = Y + sf*v;
         
+                % Decide if this plate is "slender"
+                lambda = plates(i).l / plates(i).h;      % slenderness (l/h)
+                make_thicker = (lambda >= 6);            % threshold — tune if needed
+                pb_ratio = [2 1 1];                      % 3:1 width:height plot box
+        
                 % σx
                 ax = nexttile(t,(i-1)*3+1);
                 surf(ax, Xd, Yd, 0*sigx, sigx, 'EdgeColor','none');
-                view(ax,2); axis(ax,'equal','tight');
+                view(ax,2);
+                if make_thicker
+                    axis(ax,'tight');                    % allow visual thickening
+                    pbaspect(ax,pb_ratio);
+                else
+                    axis(ax,'equal','tight');            % preserve geometry when not slender
+                end
                 obj.symClim(ax, sigx); grid(ax,'off'); obj.setCbar(ax,'\sigma_x');
-                set(ax,'FontSize',obj.CB_TICK_FS);
+                set(ax,'FontSize',obj.CB_TICK_FS,'YDir','reverse');
                 xlabel(ax,'x','FontWeight','bold','FontSize',obj.AX_LABEL_FS);
                 ylabel(ax,'y','FontWeight','bold','FontSize',obj.AX_LABEL_FS);
-                set(gca,'YDir','reverse');
         
                 % σy
                 ax = nexttile(t,(i-1)*3+2);
                 surf(ax, Xd, Yd, 0*sigy, sigy, 'EdgeColor','none');
-                view(ax,2); axis(ax,'equal','tight');
+                view(ax,2);
+                if make_thicker
+                    axis(ax,'tight'); pbaspect(ax,pb_ratio);
+                else
+                    axis(ax,'equal','tight');
+                end
                 obj.symClim(ax, sigy); grid(ax,'off'); obj.setCbar(ax,'\sigma_y');
-                set(ax,'FontSize',obj.CB_TICK_FS);
+                set(ax,'FontSize',obj.CB_TICK_FS,'YDir','reverse');
                 xlabel(ax,'x','FontWeight','bold','FontSize',obj.AX_LABEL_FS);
                 ylabel(ax,'y','FontWeight','bold','FontSize',obj.AX_LABEL_FS);
-                set(gca,'YDir','reverse');
         
                 % τxy
                 ax = nexttile(t,(i-1)*3+3);
                 surf(ax, Xd, Yd, 0*tauxy, tauxy, 'EdgeColor','none');
-                view(ax,2); axis(ax,'equal','tight');
+                view(ax,2);
+                if make_thicker
+                    axis(ax,'tight'); pbaspect(ax,pb_ratio);
+                else
+                    axis(ax,'equal','tight');
+                end
                 obj.symClim(ax, tauxy); grid(ax,'off'); obj.setCbar(ax,'\tau_{xy}');
-                set(ax,'FontSize',obj.CB_TICK_FS);
+                set(ax,'FontSize',obj.CB_TICK_FS,'YDir','reverse');
                 xlabel(ax,'x','FontWeight','bold','FontSize',obj.AX_LABEL_FS);
                 ylabel(ax,'y','FontWeight','bold','FontSize',obj.AX_LABEL_FS);
-                set(gca,'YDir','reverse');
             end
         end
+
 
         function plot_disp_concentrated(obj)
             % Plot u and v (uy0 clamp) for concentrated load, side-by-side per plate
@@ -200,40 +219,8 @@ classdef Plotter
             nP     = numel(plates);
         
             % ==== Figure A: v only, one row x two columns (Plate 1 vs Plate 2) ====
-            figure('Name','v (uy0) on displaced shape — concentrated load: Plate 1 vs Plate 2');
-            t = tiledlayout(2,1,'Padding','compact','TileSpacing','compact');
-            
-            nShow = min(nP,2);                          % show first two plates
-            U = cell(1,nShow); V = cell(1,nShow);
-            XV = cell(1,nShow); YV = cell(1,nShow);
-            MAG = cell(1,nShow);
-            
-            % Solve once for the plates to get a shared color scale
-            for k = 1:nShow
-                [U{k}, V{k}, XV{k}, YV{k}] = plates(k).solve_plate_concentrated("uy0");
-                MAG{k} = hypot(U{k}, V{k});
-            end
-            vabs = max( abs([V{1}(:); V{min(2,nShow)}(:)]) );
-            
-            for k = 1:nShow
-                [Xk,Yk] = meshgrid(XV{k}, YV{k});
-                sf  = 0.15 * max(plates(k).l, plates(k).h) / max([MAG{k}(:); eps]);
-            
-                ax = nexttile(t,k);
-                Xd = Xk + sf*U{k};  Yd = Yk + sf*V{k};
-                surf(ax, Xd, Yd, zeros(size(Xd)), V{k}, 'EdgeColor','none'); hold(ax,'on');
-                set(ax,'YDir','reverse'); view(ax,2); axis(ax,'equal','tight');
-                colormap(ax, parula); grid(ax,'off'); clim(ax,[-vabs vabs]);
-                obj.setCbar(ax,'v');
-                xlabel(ax,'x','FontWeight','bold','FontSize',obj.AX_LABEL_FS);
-                ylabel(ax,'y','FontWeight','bold','FontSize',obj.AX_LABEL_FS);
-                title(ax, sprintf('Plate %d', k));
-            end
-            
-            
-            % ==== Single-row figure: v(x,0) overlays for Plates 1 & 2 ====
             figure('Name','v(x,0): vx0 vs uy0 — Plates 1 & 2');
-            t = tiledlayout(1,2,'Padding','compact','TileSpacing','compact');
+            t = tiledlayout(2,2,'Padding','compact','TileSpacing','compact');
             
             % -------- Tile 1: Plate 1 (v at y=0 vs x) --------
             [u1,v1,xv1,yv1] = plates(1).solve_plate_concentrated("vx0");
@@ -241,25 +228,156 @@ classdef Plotter
             [~,iy0] = min(abs(yv1));  % y = 0 index
             
             ax = nexttile(t,1);
-            plot(ax, xv1, v1(iy0,:), 'LineWidth',1.5, 'DisplayName','v,x=0'); hold(ax,'on');
-            plot(ax, xv1, v2(iy0,:), 'LineWidth',1.5, 'DisplayName','u,y=0');
+            set(ax,'FontSize', max(12, obj.AX_LABEL_FS+2), 'FontName','Arial');  % <-- ticks size
+            plot(ax, xv1, v1(iy0,:), 'LineWidth',2.0, 'DisplayName','v_{x}=0'); hold(ax,'on');
+            plot(ax, xv1, v2(iy0,:), 'LineWidth',2.0, 'DisplayName','u_{y}=0');
             grid(ax,'off'); xlim(ax,[xv1(1) xv1(end)]);
-            xlabel(ax,'x','FontWeight','bold','FontSize',obj.AX_LABEL_FS);
-            ylabel(ax,'v(x,0)','FontWeight','bold','FontSize',obj.AX_LABEL_FS);
-            legend(ax,'Location','best');
+            xlabel(ax,'x','FontWeight','bold','FontSize',obj.AX_LABEL_FS+2);
+            ylabel(ax,'v(x,0)','FontWeight','bold','FontSize',obj.AX_LABEL_FS+2);
+            legend(ax,'Location','best','FontSize',obj.AX_LABEL_FS+2,'Box','on');
             
             % -------- Tile 2: Plate 1 (u along y at x = l) --------
-            x0 = plates(1).l;                     % choose the section (e.g., right end)
-            [~,ix0] = min(abs(xv1 - x0));         % x index for x0
+            x0 = plates(1).l;  [~,ix0] = min(abs(xv1 - x0));
             
             ax = nexttile(t,2);
-            plot(ax, u1(:,ix0), yv1,  'LineWidth',1.5, 'DisplayName','v,x=0'); hold(ax,'on');
-            plot(ax, u2(:,ix0), yv1,  'LineWidth',1.5, 'DisplayName','u,y=0');
-            grid(ax,'off'); xlim(ax,[u1(1,ix0) u1(end,ix0)]);
-            xlabel(ax, sprintf('u(y, x=%.3g)', x0),'FontWeight','bold','FontSize',obj.AX_LABEL_FS);
-            ylabel(ax, 'y', 'FontWeight','bold','FontSize',obj.AX_LABEL_FS);
-            legend(ax,'Location','best');
+            set(ax,'FontSize', max(12, obj.AX_LABEL_FS+2), 'FontName','Arial');  % <-- ticks size
+            plot(ax, u1(:,ix0), yv1, 'LineWidth',2.0, 'DisplayName','v_x=0'); hold(ax,'on');
+            plot(ax, u2(:,ix0), yv1, 'LineWidth',2.0, 'DisplayName','u_y=0');
+            grid(ax,'off'); ylim(ax,[yv1(1) yv1(end)]);
+            xlabel(ax, sprintf('u(y, x=%.3g)', x0),'FontWeight','bold','FontSize',obj.AX_LABEL_FS+2);
+            ylabel(ax, 'y', 'FontWeight','bold','FontSize',obj.AX_LABEL_FS+2);
+            legend(ax,'Location','best','FontSize',obj.AX_LABEL_FS+2,'Box','on');
         end
+
+        function plot_displacement_superposed(obj)
+            plates = obj.plates;
+            nP     = numel(plates);
+        
+            figure('Name','Deformed field (v and u)');
+            t = tiledlayout(nP,2,'Padding','compact','TileSpacing','compact');
+        
+            for i = 1:nP
+                [u,v,xv,yv] = plates(i).solve_superposed_zeroV();
+                [X,Y] = meshgrid(xv,yv);
+                mag = sqrt(u.^2 + v.^2);
+                sf  = 0.1 * max(plates(i).l, plates(i).h) / max(mag(:)+eps);
+                Xd  = X + sf*u;   Yd = Y + sf*v;
+        
+                % v (left)
+                ax = nexttile(t,(i-1)*2+1);
+                surf(ax, Xd, Yd, 0*v, v, 'EdgeColor','none');
+                view(ax,2); axis(ax,'equal','tight');
+                colormap(ax, parula); obj.setCbar(ax,'v');
+                obj.symClim(ax, v); grid(ax,'off');
+                set(ax,'FontSize',obj.CB_TICK_FS);
+                xlabel(ax,'x','FontWeight','bold','FontSize',obj.AX_LABEL_FS);
+                ylabel(ax,'y','FontWeight','bold','FontSize',obj.AX_LABEL_FS);
+                set(gca,'YDir','reverse');
+        
+                % u (right)
+                ax = nexttile(t,(i-1)*2+2);
+                surf(ax, Xd, Yd, 0*u, u, 'EdgeColor','none');
+                view(ax,2); axis(ax,'equal','tight');
+                colormap(ax, parula); obj.setCbar(ax,'u');
+                obj.symClim(ax, u); grid(ax,'off');
+                set(ax,'FontSize',obj.CB_TICK_FS);
+                xlabel(ax,'x','FontWeight','bold','FontSize',obj.AX_LABEL_FS);
+                ylabel(ax,'y','FontWeight','bold','FontSize',obj.AX_LABEL_FS);
+                set(gca,'YDir','reverse');
+            end
+        end
+
+        function plot_superposed(obj)
+            % One plate: top row = u, v, rotation θ ; bottom row = σx, σy, τxy
+            plate = obj.plates(2);
+        
+            figure('Name','Superposed response — deformations (top) & stresses (bottom)');
+            t = tiledlayout(2,3,'Padding','compact','TileSpacing','compact');
+        
+            % --- Solve superposed response (exponential + concentrated, v(0,0)=0) ---
+            [u,v,xv,yv,sigx,sigy,tauxy] = plate.solve_superposed_zeroV();
+            [X,Y] = meshgrid(xv,yv);
+        
+            % Deformation scale
+            mag = hypot(u,v);
+            sf  = 0.07 * max(plate.l, plate.h) / max([mag(:); eps]);
+            Xd  = X + sf*u;   Yd = Y + sf*v;
+        
+            % Slenderness-based aspect
+            lambda = plate.l / plate.h;
+            make_thicker = (lambda >= 6);
+            pb_ratio = [3 1 1];
+        
+            % Symmetric limits for u,v
+            uabs = max(abs(u(:)));
+            vabs = max(abs(v(:)));
+        
+            % ---- NEW: small-rotation (rigid-body) angle θ = 1/2 (v_x - u_y) ----
+            dx = xv(2)-xv(1);  dy = yv(2)-yv(1);
+            [du_dy, du_dx] = gradient(u, dy, dx);   % returns [∂u/∂y, ∂u/∂x]
+            [dv_dy, dv_dx] = gradient(v, dy, dx);   % returns [∂v/∂y, ∂v/∂x]
+            theta = 0.5*(dv_dx - du_dy);            % radians
+            tabs  = max(abs(theta(:)));
+        
+            % ---------- Top row: deformations ----------
+            % u(x,y)
+            ax = nexttile(t,1);
+            surf(ax, Xd, Yd, zeros(size(Xd)), u, 'EdgeColor','none');
+            view(ax,2); if make_thicker, axis(ax,'tight'); pbaspect(ax,pb_ratio); else, axis(ax,'equal','tight'); end
+            obj.setCbar(ax,'u'); grid(ax,'off'); clim(ax,[-uabs uabs]);
+            set(ax,'FontSize',obj.CB_TICK_FS,'YDir','reverse');
+            xlabel(ax,'x','FontWeight','bold','FontSize',obj.AX_LABEL_FS);
+            ylabel(ax,'y','FontWeight','bold','FontSize',obj.AX_LABEL_FS);
+        
+            % v(x,y)
+            ax = nexttile(t,2);
+            surf(ax, Xd, Yd, zeros(size(Xd)), v, 'EdgeColor','none');
+            view(ax,2); if make_thicker, axis(ax,'tight'); pbaspect(ax,pb_ratio); else, axis(ax,'equal','tight'); end
+            obj.setCbar(ax,'v'); grid(ax,'off'); clim(ax,[-vabs vabs]);
+            set(ax,'FontSize',obj.CB_TICK_FS,'YDir','reverse');
+            xlabel(ax,'x','FontWeight','bold','FontSize',obj.AX_LABEL_FS);
+            ylabel(ax,'y','FontWeight','bold','FontSize',obj.AX_LABEL_FS);
+        
+            % θ(x,y) rotation
+            ax = nexttile(t,3);
+            surf(ax, Xd, Yd, zeros(size(Xd)), theta, 'EdgeColor','none');
+            view(ax,2); if make_thicker, axis(ax,'tight'); pbaspect(ax,pb_ratio); else, axis(ax,'equal','tight'); end
+            grid(ax,'off'); clim(ax,[-tabs tabs]);
+            cb = colorbar(ax); cb.Label.String = '\theta (rad)'; cb.Label.FontSize = obj.CB_LABEL_FS;
+            set(ax,'FontSize',obj.CB_TICK_FS,'YDir','reverse');
+            xlabel(ax,'x','FontWeight','bold','FontSize',obj.AX_LABEL_FS);
+            ylabel(ax,'y','FontWeight','bold','FontSize',obj.AX_LABEL_FS);
+        
+            % ---------- Bottom row: stresses ----------
+            % σx
+            ax = nexttile(t,4);
+            surf(ax, Xd, Yd, zeros(size(Xd)), sigx, 'EdgeColor','none');
+            view(ax,2); if make_thicker, axis(ax,'tight'); pbaspect(ax,pb_ratio); else, axis(ax,'equal','tight'); end
+            obj.symClim(ax, sigx); grid(ax,'off'); obj.setCbar(ax,'\sigma_x');
+            set(ax,'FontSize',obj.CB_TICK_FS,'YDir','reverse');
+            xlabel(ax,'x','FontWeight','bold','FontSize',obj.AX_LABEL_FS);
+            ylabel(ax,'y','FontWeight','bold','FontSize',obj.AX_LABEL_FS);
+        
+            % σy
+            ax = nexttile(t,5);
+            surf(ax, Xd, Yd, zeros(size(Xd)), sigy, 'EdgeColor','none');
+            view(ax,2); if make_thicker, axis(ax,'tight'); pbaspect(ax,pb_ratio); else, axis(ax,'equal','tight'); end
+            obj.symClim(ax, sigy); grid(ax,'off'); obj.setCbar(ax,'\sigma_y');
+            set(ax,'FontSize',obj.CB_TICK_FS,'YDir','reverse');
+            xlabel(ax,'x','FontWeight','bold','FontSize',obj.AX_LABEL_FS);
+            ylabel(ax,'y','FontWeight','bold','FontSize',obj.AX_LABEL_FS);
+        
+            % τxy
+            ax = nexttile(t,6);
+            surf(ax, Xd, Yd, zeros(size(Xd)), tauxy, 'EdgeColor','none');
+            view(ax,2); if make_thicker, axis(ax,'tight'); pbaspect(ax,pb_ratio); else, axis(ax,'equal','tight'); end
+            obj.symClim(ax, tauxy); grid(ax,'off'); obj.setCbar(ax,'\tau_{xy}');
+            set(ax,'FontSize',obj.CB_TICK_FS,'YDir','reverse');
+            xlabel(ax,'x','FontWeight','bold','FontSize',obj.AX_LABEL_FS);
+            ylabel(ax,'y','FontWeight','bold','FontSize',obj.AX_LABEL_FS);
+        end
+
+
     end
 
     methods (Access=private)

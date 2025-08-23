@@ -229,10 +229,11 @@ classdef Plate
             v = v - Srot * (ones(Ny,1) * (xv - l));
         end
 
-        function [u,v,xv,yv,sigx,sigy,tauxy] = solve_plate_concentrated(obj, clampMode)
-        % Concentrated vertical load P applied at the left end (x=0).
-        % clampMode: "vx0"  -> enforce v_x(l,0)=0   (default)
-        %            "uy0"  -> enforce u_y(l,0)=0
+        function [u,v,xv,yv,sigx,sigy,tauxy] =...
+                solve_plate_concentrated(obj, clampMode)
+            % Concentrated vertical load P applied at the left end (x=0).
+            % clampMode: "vx0"  -> enforce v_x(l,0)=0   (default)
+            %            "uy0"  -> enforce u_y(l,0)=0
             if nargin < 2 || isempty(clampMode), clampMode = "vx0"; end
             % geometry & material
             l  = obj.l;      h  = obj.h;
@@ -240,8 +241,7 @@ classdef Plate
             Nx = obj.Nx;     Ny = obj.Ny;
             P = obj.P;
         
-            G = E/(2*(1+nu));
-            I = (2/3)*h^3;                 % rectangular section moment
+            G = E/(2*(1+nu));   I = (2/3)*h^3; % plate paramters
         
             % grid
             xv = linspace(0,l,Nx);
@@ -253,10 +253,9 @@ classdef Plate
             sigy  = zeros(Ny,Nx);
             tauxy = (P/(2*I)) .* (h^2 - Y.^2);
         
-            % --- Displacements via Hooke + shear separation + clamp constants ---
-            % Two clamp variants from your derivation:
+            % Displacements via Hooke + shear separation + clamp constants
             switch string(clampMode)
-                case "vx0"      % v_x(l,0)=0  (classic beam-style clamp)
+                case "vx0"      % v_x(l,0)=0
                     u =  (P.*X.^2.*Y)/(2*E*I) ...
                        + (nu*P*Y.^3)/(6*E*I) - (P*Y.^3)/(6*G*I) ...
                        + ( (P*h^2)/(2*G*I) - (P*l^2)/(2*E*I) ) .* Y;                   % u1
@@ -273,5 +272,28 @@ classdef Plate
             end
         end
 
+        function [u,v,xv,yv,sigx,sigy,tauxy,Pstar] =...
+                solve_superposed_zeroV(obj)
+       
+            % Exponential-load solution
+            [u_w, v_w, xv, yv, sx_w, sy_w, txy_w] = obj.solve_plate_exp();
+        
+            % Concentrated-load solution at unit P
+            [u_P1, v_P1, ~, ~, sx_P1, sy_P1, txy_P1] = ...
+                obj.solve_plate_concentrated('vx0');
+        
+            % x, y indecies
+            [~, ix0] = min(abs(xv));    [~, iy0] = min(abs(yv));
+            
+            % solve for P so v_total(x0,y0)=0
+            Pstar = - v_w(iy0, ix0) / v_P1(iy0, ix0);
+        
+            % Superpose fields
+            u     = u_w   + Pstar * u_P1;
+            v     = v_w   + Pstar * v_P1;
+            sigx  = sx_w  + Pstar * sx_P1;
+            sigy  = sy_w  + Pstar * sy_P1;
+            tauxy = txy_w + Pstar * txy_P1;
+        end
     end
 end

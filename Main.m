@@ -14,3 +14,5 @@ plotter = Plotter(plates, modeList);
 % plotter.plot_displacement_exp();
 % plotter.plot_stresses_exp();
 plotter.plot_disp_concentrated();
+
+% plotter.plot_superposed();

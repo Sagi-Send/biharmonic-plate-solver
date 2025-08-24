@@ -148,34 +148,13 @@ classdef Plate
             c = cos(alpha*h);
             den1 = (alpha*h + s*c);
             den2 = (alpha*h - s*c);
-        
-            use_closed_form = (abs(den1) > 1e-10) && (abs(den2) > 1e-10);
-        
-            if use_closed_form
-                % Closed-form constants (fast, stable away from resonance)
-                A =  w_eff*(alpha*h*c + s) / (2*alpha^2*den1);
-                B = -w_eff*c / (2*alpha*den2);
-                C = -w_eff*(alpha*h*s - c) / (2*alpha^2*den2);
-                D =  w_eff*s / (2*alpha*den1);
-            else
-                % Fallback: robust 4x4 solve near resonant alpha*h
-                cy = @(yy) cos(alpha*yy);
-                sy = @(yy) sin(alpha*yy);
-                % f(y)   = (A+B*y)cos + (C+D*y)sin
-                % f'(y)  = [B+alpha(C+D*y)]cos + [D - alpha(A+B*y)]sin
-                M = [ ...
-                    cy(-h), (-h)*cy(-h), sy(-h), (-h)*sy(-h);   % f(-h) = w_eff/alpha^2
-                    cy( h), ( h)*cy( h), sy( h), ( h)*sy( h);   % f( h) = 0
-                    -alpha*sy( h), cy( h)-alpha*h*sy( h), alpha*cy( h), ...
-                                   sy( h)+alpha*h*cy( h);       % f'( h)=0
-                    -alpha*sy(-h), cy(-h)+alpha*h*sy(-h), alpha*cy(-h), ...
-                                   sy(-h)-alpha*h*cy(-h)        % f'(-h)=0
-                ];
-                rhs = [w_eff/alpha^2; 0; 0; 0];
-                sol = M\rhs;
-                A = sol(1); B = sol(2); C = sol(3); D = sol(4);
-            end
-        
+                
+            % Closed-form constants (fast, stable away from resonance)
+            A =  w_eff*(alpha*h*c + s) / (2*alpha^2*den1);
+            B = -w_eff*c / (2*alpha*den2);
+            C = -w_eff*(alpha*h*s - c) / (2*alpha^2*den2);
+            D =  w_eff*s / (2*alpha*den1);
+
             % ---- f, f', f'' on the whole grid ----
             cy = cos(alpha*Y);   sy = sin(alpha*Y);
             f   = (A + B.*Y).*cy + (C + D.*Y).*sy;

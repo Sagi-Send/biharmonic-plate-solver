@@ -1,8 +1,8 @@
 classdef Plate
     properties (Constant)
         h  = 0.5;   % half-thickness (total = 2h)
-        E  = 50.0;
-        nu = 0.20;
+        E  = 500.0;
+        nu = 0.0020;
         w0 = 1;
         P = 1;
     end
@@ -249,6 +249,70 @@ classdef Plate
                        - (P*X.^3)/(6*E*I) + (P*l^2*X)/(2*E*I) - (P*l^3)/(3*E*I) ...
                        - (P*h^2)/(2*G*I) .* (l - X);                                    % v2
             end
+        end
+
+        function [u,v,xv,yv,sigx,sigy,tauxy] = solve_plate_k0(obj)
+            % geometry & material
+            l  = obj.l;      h  = obj.h;
+            E  = obj.E;      nu = obj.nu;
+            Nx = obj.Nx;     Ny = obj.Ny;
+            w0 = obj.w0;     % uniform (k=0) load
+        
+            % elastic constants
+            G = E/(2*(1+nu));
+            I = (2/3)*h^3;                    % unit width
+        
+            % grid
+            xv = linspace(0,l,Nx);
+            yv = linspace(-h,h,Ny);
+            [X,Y] = meshgrid(xv,yv);
+            [~,iy0] = min(abs(yv));           % midline row index
+        
+            % ---- Stresses for k=0 (Eq. 32) over the full plate ----
+            sigx  = (w0/(2*I)) .* ( (l - X).*X.*Y + (2/3)*Y.^3 - (2/5)*h^2.*Y );
+            sigy  = -(w0/(2*I)) .* ( (1/3)*Y.^3 - h^2.*Y + (2/3)*h^3 );
+            tauxy = -(w0/(2*I)) .* ( (h^2 - Y.^2) .* (X - 0.5*l) );
+        
+            % ---- Midline displacement (Eq. 34) + P* superposition ----
+            % P* chosen to enforce v(0,0)=0 while preserving weak clamp
+            Pstar =  (3/2) * h^2 * (1+nu) * w0 / (l);
+        
+            u_mid = -(nu.*w0.*(l - xv))./(2.*E);
+            v_mid = -(w0.*xv.*(l - xv).^2.*...
+                (10.*l.*xv + 30.*h.^2.*nu + 48.*h.^2 - 25.*l.^2))./...
+                (160*E*h^3*l);
+        
+            % ---- Return u,v only on the midline (other rows = NaN) ----
+            u = NaN(Ny, Nx);   v = NaN(Ny, Nx);
+            u(iy0,:) = u_mid;
+            v(iy0,:) = v_mid;
+        end
+
+        function [u,v,xv,yv] = solve_beam_k0(obj)
+            % geometry & material
+            l  = obj.l;      h  = obj.h;
+            E  = obj.E;      nu = obj.nu;
+            Nx = obj.Nx;     Ny = obj.Ny;
+            w0 = obj.w0;     % uniform (k=0) load
+        
+            % elastic constants
+            G = E/(2*(1+nu));
+            I = (2/3)*h^3;                    % unit width
+        
+            % grid
+            xv = linspace(0,l,Nx);
+            yv = linspace(-h,h,Ny);
+            [X,Y] = meshgrid(xv,yv);
+            [~,iy0] = min(abs(yv));           % midline row index
+        
+            % ---- Midline displacement (Eq. 34) + P* superposition ----
+            u_mid = 0;
+            v_mid = (xv.*(l-xv).^2.*(l+2.*xv))/(48*E*I)*w0;
+        
+            % ---- Return u,v only on the midline (other rows = NaN) ----
+            u = NaN(Ny, Nx);   v = NaN(Ny, Nx);
+            u(iy0,:) = u_mid;
+            v(iy0,:) = v_mid;
         end
 
         function [u,v,xv,yv,sigx,sigy,tauxy,Pstar] =...

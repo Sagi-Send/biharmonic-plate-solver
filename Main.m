@@ -1,7 +1,7 @@
 clear; clc;
 
 k = 1;                     % exponential load coefficient
-S = [1 10];                % slenderness values
+S = [1 10 100];                % slenderness 
 Nx = 500; Ny = 501;
 modeList = [0 1 2 50];
 
@@ -11,8 +11,10 @@ for i = 1:nP
 end
 
 plotter = Plotter(plates, modeList);
-plotter.plot_displacement_exp();
-plotter.plot_stresses_exp();
+% plotter.plot_displacement_exp();
+% plotter.plot_stresses_exp();
 % plotter.plot_disp_concentrated();
 
 % plotter.plot_superposed();
+
+plotter.plot_midlines();

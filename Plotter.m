@@ -369,50 +369,49 @@ classdef Plotter
             % τxy
             ax = nexttile(t,6);
             surf(ax, Xd, Yd, zeros(size(Xd)), tauxy, 'EdgeColor','none');
-            view(ax,2); if make_thicker, axis(ax,'tight'); pbaspect(ax,pb_ratio); else, axis(ax,'equal','tight'); end
-            obj.symClim(ax, tauxy); grid(ax,'off'); obj.setCbar(ax,'\tau_{xy}');
+            view(ax,2); if make_thicker, axis(ax,'tight');
+            pbaspect(ax,pb_ratio); else, axis(ax,'equal','tight'); end
+            obj.symClim(ax, tauxy); grid(ax,'off');
+            obj.setCbar(ax,'\tau_{xy}');
             set(ax,'FontSize',obj.CB_TICK_FS,'YDir','reverse');
             xlabel(ax,'x','FontWeight','bold','FontSize',obj.AX_LABEL_FS);
             ylabel(ax,'y','FontWeight','bold','FontSize',obj.AX_LABEL_FS);
         end
 
         function plot_midlines(obj)
-            % Plot u and v (uy0 clamp) for concentrated load, side-by-side per plate
             plates = obj.plates;
+            for i = 1:numel(plates)
+                plates(i).l = 1;
+            end
             nP     = numel(plates);
-        
-            % ==== Figure A: v only, one row x two columns (Plate 1 vs Plate 2) ====
+            
             figure('Name','midline_1');
-            t = tiledlayout(2,2,'Padding','compact','TileSpacing','compact');
+            t = tiledlayout(2, nP,'Padding','compact','TileSpacing',...
+                'compact');
             
-            % -------- Tile 1: Plate 1 (h/l=1) --------
-            [u1p,v1p,xv1,yv1] = plates(1).solve_plate_k0();
-            [u2p,v2p, ~, ~] = plates(2).solve_plate_k0();
+            for i = 1:nP
+                [up,vp,xv,yv]   = plates(i).solve_plate_k0();    
+                [ub,vb,~,~]     = plates(i).solve_beam_k0();
 
-            [u1b,v1b,xv1,yv1] = plates(1).solve_beam_k0();
-            [u2b,v2b, ~, ~] = plates(2).solve_beam_k0();
-
-            [~,iy0] = min(abs(yv1));  % y = 0 index
-            
-            ax = nexttile(t,1);
-            set(ax,'FontSize', max(12, obj.AX_LABEL_FS+2), 'FontName','Arial');
-            plot(ax, xv1, v1p(iy0,:), 'LineWidth',2.0, 'DisplayName','plate'); hold(ax,'on');
-            plot(ax, xv1, v1b(iy0,:), 'LineWidth',2.0, 'DisplayName','beam');
-            grid(ax,'off'); xlim(ax,[xv1(1) xv1(end)]);
-            xlabel(ax,'x','FontWeight','bold','FontSize',obj.AX_LABEL_FS+2);
-            ylabel(ax,'v(x,0)','FontWeight','bold','FontSize',obj.AX_LABEL_FS+2);
-            legend(ax,'Location','best','FontSize',obj.AX_LABEL_FS+2,'Box','on');
-            set(gca,'YDir','reverse');
-
-            ax = nexttile(t,2);
-            set(ax,'FontSize', max(12, obj.AX_LABEL_FS+2), 'FontName','Arial');
-            plot(ax, xv1, v2p(iy0,:), 'LineWidth',2.0, 'DisplayName','plate'); hold(ax,'on');
-            plot(ax, xv1, v2b(iy0,:), 'LineWidth',2.0, 'DisplayName','beam');
-            grid(ax,'off'); xlim(ax,[xv1(1) xv1(end)]); 
-            xlabel(ax,'x','FontWeight','bold','FontSize',obj.AX_LABEL_FS+2);
-            ylabel(ax,'v(x,0)','FontWeight','bold','FontSize',obj.AX_LABEL_FS+2);
-            legend(ax,'Location','best','FontSize',obj.AX_LABEL_FS+2,'Box','on');
-            set(gca,'YDir','reverse');
+                [~,iy0] = min(abs(yv));  % y = 0 index
+                
+                ax = nexttile(t,i);
+                set(ax,'FontSize', max(12, obj.AX_LABEL_FS+2),...
+                    'FontName','Arial');
+                plot(ax, xv, vp(iy0,:).*(plates(i).h/plates(i).l), 'LineWidth',2.0,...
+                    'DisplayName','plate'); hold(ax,'on');
+                plot(ax, xv, vb(iy0,:).*(plates(i).h/plates(i).l), 'LineWidth',2.0,...
+                    'DisplayName','beam');
+                grid(ax,'off'); xlim(ax,[xv(1) xv(end)]);
+                xlabel(ax,'x','FontWeight','bold','FontSize',...
+                    obj.AX_LABEL_FS+2);
+                ylabel(ax,'v(x,0)','FontWeight','bold','FontSize',...
+                    obj.AX_LABEL_FS+2);
+                legend(ax,'Location','best','FontSize',obj.AX_LABEL_FS+2,...
+                    'Box','on');
+                set(gca,'YDir','reverse');
+                title(2*plates(i).h/plates(i).l)
+            end
         end
     end
 

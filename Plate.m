@@ -1,29 +1,76 @@
 classdef Plate
     properties (Constant)
-        h  = 0.5;   % half-thickness (total = 2h)
         E  = 500.0;
         nu = 0.0020;
         w0 = 1;
-        P = 1;
+        P  = 1;
     end
-    properties (Dependent)
-        l                  % span; computed from S and h
-    end
-    properties
-        k  = 1.0;              % exponential load exponent
-        S  = 1.0;              % slenderness S = l/(2h)
-        Nx = 600;   Ny = 241;  % grid
 
+    % default when neither h nor l is set explicitly
+    properties (Constant, Access=private)
+        H_DEFAULT = 0.5;
+    end
+
+    properties (Dependent)
+        h                  % half-thickness
+        l                  % span
+    end
+
+    properties
+        k  = 1.0;          % exponential load exponent
+        S  = 1.0;          % slenderness S = l/(2h)
+        Nx = 600; Ny = 241;
+    end
+
+    properties (Access=private)
+        h_user = [];       % if set, h is fixed; l = 2*h*S
+        l_user = [];       % if set, l is fixed; h = l/(2*S)
     end
 
     methods
-        function obj = Plate(k, slenderness, Nx, Ny)
-            obj.k  = k;     obj.S  = slenderness;
-            obj.Nx = Nx;    obj.Ny = Ny;
+        function obj = Plate(k, slenderness, Nx, Ny, ~)
+            if nargin>=1, obj.k  = k;           end
+            if nargin>=2, obj.S  = slenderness; end
+            if nargin>=3, obj.Nx = Nx;          end
+            if nargin>=4, obj.Ny = Ny;          end
+        end
+
+        % -------- getters (no recursion) --------
+        function H = get.h(obj)
+            if ~isempty(obj.h_user)
+                H = obj.h_user;
+            elseif ~isempty(obj.l_user)
+                H = obj.l_user/(2*obj.S);
+            else
+                H = obj.H_DEFAULT;
+            end
         end
 
         function L = get.l(obj)
-            L = 2*obj.h * obj.S;
+            if ~isempty(obj.l_user)
+                L = obj.l_user;
+            else
+                L = 2*obj.h*obj.S;   % uses get.h safely
+            end
+        end
+
+        % -------- setters: last assignment wins --------
+        function obj = set.h(obj, val)
+            validateattributes(val, {'numeric'}, {'scalar','real','positive'});
+            obj.h_user = val;       % pin h
+            obj.l_user = [];        % derive l from S next time
+        end
+
+        function obj = set.l(obj, val)
+            validateattributes(val, {'numeric'}, {'scalar','real','positive'});
+            obj.l_user = val;       % pin l
+            obj.h_user = [];        % derive h from S next time
+        end
+
+        function obj = set.S(obj, val)
+            validateattributes(val, {'numeric'},...
+                {'scalar','real','positive'});
+            obj.S = val;            % derived h/l update automatically
         end
 
         % ---- solver: returns u,v, grids, and stresses ----

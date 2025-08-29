@@ -325,9 +325,9 @@ classdef Plate
             Pstar =  (3/2) * h^2 * (1+nu) * w0 / (l);
         
             u_mid = -(nu.*w0.*(l - xv))./(2.*E);
-            v_mid = -(w0.*xv.*(l - xv).^2.*...
-                (10.*l.*xv + 30.*h.^2.*nu + 48.*h.^2 - 25.*l.^2))./...
-                (160*E*h^3*l);
+            v_mid = (w0.*xv.*(l - xv).^2.*(30*h^2*nu - 10*l.*xv + 12*h^2 ...
+                + 25*l^2))/(160*E*h^3*l) -...
+                (3*w0.*xv.*(2*nu + 2).*(l - xv).^2)./(16*E*h*l);
         
             % ---- Return u,v only on the midline (other rows = NaN) ----
             u = NaN(Ny, Nx);   v = NaN(Ny, Nx);
@@ -354,7 +354,7 @@ classdef Plate
         
             % ---- Midline displacement (Eq. 34) + P* superposition ----
             u_mid = 0;
-            v_mid = (xv.*(l-xv).^2.*(l+2.*xv))/(48*E*I)*w0;
+            v_mid = (xv.*(l-xv).^2.*(l+2.*xv))/(32*E*h^3)*w0;
         
             % ---- Return u,v only on the midline (other rows = NaN) ----
             u = NaN(Ny, Nx);   v = NaN(Ny, Nx);

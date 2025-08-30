@@ -1,7 +1,7 @@
 clear; clc;
 
 k = 1;                     % exponential load coefficient
-S = [1 10 100000];                % slenderness 
+S = [1 2 10];                % slenderness 
 Nx = 500; Ny = 501;
 modeList = [0 1 2 50];
 

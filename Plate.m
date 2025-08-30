@@ -298,16 +298,12 @@ classdef Plate
             end
         end
 
-        function [u,v,xv,yv,sigx,sigy,tauxy] = solve_plate_k0(obj)
+        function [u,v,xv,yv] = solve_plate_k0(obj)
             % geometry & material
             l  = obj.l;      h  = obj.h;
             E  = obj.E;      nu = obj.nu;
             Nx = obj.Nx;     Ny = obj.Ny;
             w0 = obj.w0;     % uniform (k=0) load
-        
-            % elastic constants
-            G = E/(2*(1+nu));
-            I = (2/3)*h^3;                    % unit width
         
             % grid
             xv = linspace(0,l,Nx);
@@ -315,21 +311,12 @@ classdef Plate
             [X,Y] = meshgrid(xv,yv);
             [~,iy0] = min(abs(yv));           % midline row index
         
-            % ---- Stresses for k=0 (Eq. 32) over the full plate ----
-            sigx  = (w0/(2*I)) .* ( (l - X).*X.*Y + (2/3)*Y.^3 - (2/5)*h^2.*Y );
-            sigy  = -(w0/(2*I)) .* ( (1/3)*Y.^3 - h^2.*Y + (2/3)*h^3 );
-            tauxy = -(w0/(2*I)) .* ( (h^2 - Y.^2) .* (X - 0.5*l) );
-        
-            % ---- Midline displacement (Eq. 34) + P* superposition ----
-            % P* chosen to enforce v(0,0)=0 while preserving weak clamp
-            Pstar =  (3/2) * h^2 * (1+nu) * w0 / (l);
-        
+            % midline displacement
             u_mid = -(nu.*w0.*(l - xv))./(2.*E);
-            v_mid = (w0.*xv.*(l - xv).^2.*(30*h^2*nu - 10*l.*xv + 12*h^2 ...
-                + 25*l^2))/(160*E*h^3*l) -...
-                (3*w0.*xv.*(2*nu + 2).*(l - xv).^2)./(16*E*h*l);
+            v_mid = (w0.*xv.*(l - xv).^2.*(12*h^2 + 5*l^2 + 10.*xv.*l))/(160*E*h^3*l) +...
+                (3*nu*w0.*xv.*(2*nu + 2).*(l - xv).^2)./(128*E*h*l*(nu + 1));
         
-            % ---- Return u,v only on the midline (other rows = NaN) ----
+            % return u,v only on the midline
             u = NaN(Ny, Nx);   v = NaN(Ny, Nx);
             u(iy0,:) = u_mid;
             v(iy0,:) = v_mid;
@@ -342,21 +329,17 @@ classdef Plate
             Nx = obj.Nx;     Ny = obj.Ny;
             w0 = obj.w0;     % uniform (k=0) load
         
-            % elastic constants
-            G = E/(2*(1+nu));
-            I = (2/3)*h^3;                    % unit width
-        
             % grid
             xv = linspace(0,l,Nx);
             yv = linspace(-h,h,Ny);
             [X,Y] = meshgrid(xv,yv);
             [~,iy0] = min(abs(yv));           % midline row index
         
-            % ---- Midline displacement (Eq. 34) + P* superposition ----
+            % midline displacement
             u_mid = 0;
             v_mid = (xv.*(l-xv).^2.*(l+2.*xv))/(32*E*h^3)*w0;
         
-            % ---- Return u,v only on the midline (other rows = NaN) ----
+            % return u,v only on the midline
             u = NaN(Ny, Nx);   v = NaN(Ny, Nx);
             u(iy0,:) = u_mid;
             v(iy0,:) = v_mid;

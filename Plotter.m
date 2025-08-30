@@ -408,8 +408,8 @@ classdef Plotter
                     obj.AX_LABEL_FS+2);
                 legend(ax,'Location','best','FontSize',obj.AX_LABEL_FS+2,...
                     'Box','on');
-                set(gca,'YDir','reverse');
-                title(2*plates(i).h/plates(i).l)
+                set(gca,'box','off','YDir','reverse');
+                % title(2*plates(i).h/plates(i).l)
             end
         end
     end

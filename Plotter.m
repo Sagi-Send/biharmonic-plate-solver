@@ -259,7 +259,7 @@ classdef Plotter
                 [u,v,xv,yv] = plates(i).solve_superposed_zeroV();
                 [X,Y] = meshgrid(xv,yv);
                 mag = sqrt(u.^2 + v.^2);
-                sf  = 0.1 * max(plates(i).l, plates(i).h) / max(mag(:)+eps);
+                sf  = 0.15 * max(plates(i).l, plates(i).h) / max(mag(:)+eps);
                 Xd  = X + sf*u;   Yd = Y + sf*v;
         
                 % v (left)
@@ -409,9 +409,72 @@ classdef Plotter
                 legend(ax,'Location','best','FontSize',obj.AX_LABEL_FS+2,...
                     'Box','on');
                 set(gca,'box','off','YDir','reverse');
-                % title(2*plates(i).h/plates(i).l)
             end
         end
+
+        function plot_midline_error(obj)
+            % Log–log plot of relative midline-deflection error (plate vs beam)
+            % Error metric: rel L1 = ||v_plate - v_beam||_1 / ||v_plate||_1
+        
+            plates = obj.plates;
+            nP     = numel(plates);
+        
+            % Normalize span so x in [0,1] (keeps thickness ratio comparable)
+            for i = 1:nP
+                plates(i).l = 1;
+            end
+        
+            t_over_l = zeros(nP,1);   % use 2h/l (thickness ratio)
+            rel_err  = zeros(nP,1);
+        
+            for i = 1:nP
+                % Solve plate and beam at k=0; assume they share the same x-grid
+                [~,vP,xv,yv] = plates(i).solve_plate_k0();
+                [~,vB,~, ~ ] = plates(i).solve_beam_k0();
+        
+                % Midline (y=0) extraction
+                [~,iy0] = min(abs(yv));
+                vP_mid  = vP(iy0,:);  
+                vB_mid  = vB(iy0,:);
+        
+                % Relative L1 error
+                num = trapz(xv, abs(vP_mid - vB_mid));
+                den = trapz(xv, abs(vP_mid));
+                rel_err(i) = num / max(den, eps);
+        
+                % Thickness ratio 2h/l
+                t_over_l(i) = 2*plates(i).h / plates(i).l;
+            end
+        
+            % Log–log plot
+            figure('Name','Midline deflection error (plate vs beam)'); 
+            ax = gca;
+            loglog(t_over_l, rel_err, 'o-', 'LineWidth', 2, 'MarkerSize', 7, ...
+               'DisplayName', '$\varepsilon_{1}$'); hold(ax,'on');
+            grid(ax,'on'); box(ax,'off');
+        
+            % Optional: slope fit to indicate observed order vs (2h/l)
+            valid = isfinite(t_over_l) & isfinite(rel_err) & t_over_l>0 & rel_err>0;
+            if nnz(valid) >= 2
+                p = polyfit(log(t_over_l(valid)), log(rel_err(valid)), 1);
+                tt = linspace(min(t_over_l(valid)), max(t_over_l(valid)), 100);
+                ee = exp(polyval(p, log(tt)));
+                loglog(tt, ee, '--', 'LineWidth', 1.6, ...
+                       'DisplayName', sprintf('slope $\\approx$ %.2f', p(1)));
+            end
+        
+            % Labels and styling
+            xlabel(ax,'$\mathbf{2h/l}$', 'Interpreter','latex', ...
+                'FontWeight','bold', 'FontSize', max(28, obj.AX_LABEL_FS+2));
+            ylabel(ax, '$\mathbf{\varepsilon_{1}}$', 'Interpreter','latex', ...
+                'FontWeight','bold', 'FontSize', max(28, obj.AX_LABEL_FS+2));
+            grid off;
+            legend(ax, 'Location','best', 'Box','on', 'Interpreter','latex', ...
+               'FontSize', max(26, obj.AX_LABEL_FS+1));
+            set(ax,'box','off', 'FontName','Arial');
+        end
+
+
     end
 
     methods (Access=private)

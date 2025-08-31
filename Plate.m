@@ -191,10 +191,8 @@ classdef Plate
             alpha = k/l;
             w_eff = -w0;
         
-            s = sin(alpha*h);
-            c = cos(alpha*h);
-            den1 = (alpha*h + s*c);
-            den2 = (alpha*h - s*c);
+            s = sin(alpha*h);       c = cos(alpha*h);
+            den1 = (alpha*h + s*c); den2 = (alpha*h - s*c);
                 
             % Closed-form constants (fast, stable away from resonance)
             A =  w_eff*(alpha*h*c + s) / (2*alpha^2*den1);
@@ -202,20 +200,20 @@ classdef Plate
             C = -w_eff*(alpha*h*s - c) / (2*alpha^2*den2);
             D =  w_eff*s / (2*alpha*den1);
 
-            % ---- f, f', f'' on the whole grid ----
+            % f, f', f'' on the whole grid
             cy = cos(alpha*Y);   sy = sin(alpha*Y);
             f   = (A + B.*Y).*cy + (C + D.*Y).*sy;
             fp  = (B + alpha*(C + D.*Y)).*cy + (D - alpha*(A + B.*Y)).*sy;
             fpp = (alpha*(2*D - alpha*A) - alpha^2*B.*Y).*cy + ...
                   (-alpha*(2*B + alpha*C) - alpha^2*D.*Y).*sy;
         
-            % ---- Stresses from Airy ----
+            % Stresses from Airy
             expax  = exp(alpha*X);
             sigx   = expax .* fpp;          % sigma_x = d2(phi)/dy2
             sigy   = alpha^2 * expax .* f;  % sigma_y = d2(phi)/dx2
             tauxy  = -alpha  * expax .* fp; % tau_xy  = -d2(phi)/(dx dy)
         
-            % ---- Strains (plane stress) and displacement integration ----
+            % Strains and displacement integration
             epsx = (sigx - nu*sigy)/E;
             epsy = (sigy - nu*sigx)/E;
         
@@ -231,7 +229,7 @@ classdef Plate
                 v0(:,i) = vtmp - vtmp(iy0);  % enforce v0(x,0)=0
             end
         
-            % ---- Shear compatibility correction via separated fit ----
+            % -Shear compatibility correction via separated fit
             [~,Uy] = gradient(u0, dx, dy);   % Uy = du/dy
             [Vx,~] = gradient(v0, dx, dy);   % Vx = dv/dx
             R = Uy + Vx - tauxy./G;
@@ -247,7 +245,7 @@ classdef Plate
             u = u0 + repmat(f1, 1, Nx);
             v = v0 + repmat(f2, Ny, 1);
         
-            % ---- Clamp at (x=l, y=0): zero translations + zero slope v_x ----
+            % Clamp at (x=l, y=0): zero translations + zero slope v_x
             u = u - u(iy0,ixL);
             v = v - v(iy0,ixL);
             Srot = (v(iy0,ixL) - v(iy0,ixL-1))/dx;

@@ -14,10 +14,25 @@ w(x) \;=\; w_0\,e^{k x/\ell}.
 $$
 Stresses are recovered from $\Phi$, and in-plane displacements $u(x,y)$ and $v(x,y)$ follow from integrating the plane-stress strains. The series solution is truncated to a specified number of Fourier modes (see [1,2]).
 
+
 ## Running the code
 
-The scripts are written for MATLAB. To reproduce figures:
+The scripts are written for MATLAB.  To reproduce figures:
 
 ```matlab
 % at the MATLAB prompt
 >> Main
+```
+
+`Main.m` constructs `Plate` objects for several slenderness values and calls the plotting routines.  Additional plots such as `plot_displacement_exp` or `plot_stresses_exp` can be enabled in `Main.m`.
+
+## Example output
+
+![Deformation field](Figures/cont_deformation.png)
+
+![Superposed stresses](Figures/stress-superpose.png)
+
+## References
+
+1. S. Timoshenko and S. Woinowsky-Krieger, *Theory of Plates and Shells*, McGraw–Hill, 1959.
+2. J. N. Reddy, *Theory and Analysis of Elastic Plates and Shells*, CRC Press, 2006.

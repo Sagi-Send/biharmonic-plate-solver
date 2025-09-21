@@ -7,9 +7,9 @@ This repository implements a numerical solver for the in-plane displacements and
 ## Theory
 
 For a linearly elastic plate, the Airy stress function $\Phi(x,y)$ identically satisfies **equilibrium** and enforces **compatibility** via the biharmonic equation
-$ \nabla^{4}\Phi(x,y)=q(x,y). $
+$\nabla^{4}\Phi(x,y)=q(x,y)$.
 Stresses are recovered from $\Phi$ in the usual way. In-plane displacements $u(x,y)$ and $v(x,y)$ follow from integrating the plane-stress strains and then enforcing **shear compatibility**,
- $u_{,y}+v_{,x}=\tfrac{1}{G}\,\tau_{xy},\qquad G=\frac{E}{2(1+\nu)}$.
+ $u_{,y}+v_{,x}=\tfrac{1}{G}\tau_{xy}$,     $G=\frac{E}{2(1+\nu)}$.
 
 **Weak clamping.** Clamping at the fixed end is imposed weakly using one of two equivalent constraints at the midline:
 - $v_{,x}(l,0)=0$ (horizontal filament), or

@@ -13,7 +13,7 @@ $$\nabla^{4}\Phi(x,y)=q(x,y).$$
 Stresses are recovered from $\Phi$. In-plane displacements $u(x,y)$ and $v(x,y)$ follow from integrating the plane-stress strains and enforcing shear compatibility.
 Clamping is applied weakly via either $\partial v(x,y)/\partial x$ or alternatively $\partial u(x,y)/\partial y$. Thus, clamping is applied either at the horizontal or vertical filament, respectively.
 
-![Clamping](Figures/clamping conditions.PNG)
+![Clamping](Figures/clamping_conditions.png)
 
 ## Resulting Deformation Fields
 \textbf{Cantilever}

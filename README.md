@@ -9,7 +9,7 @@ This repository implements a numerical solver for the in-plane displacements and
 For a linearly elastic plate, the Airy stress function $\Phi(x,y)$ identically satisfies **equilibrium** and enforces **compatibility** via the biharmonic equation
 $ \nabla^{4}\Phi(x,y)=q(x,y). $
 Stresses are recovered from $\Phi$ in the usual way. In-plane displacements $u(x,y)$ and $v(x,y)$ follow from integrating the plane-stress strains and then enforcing **shear compatibility**,
-$ u_{,y}+v_{,x}=\tfrac{1}{G}\,\tau_{xy},\qquad G=\frac{E}{2(1+\nu)}. $
+ $u_{,y}+v_{,x}=\tfrac{1}{G}\,\tau_{xy},\qquad G=\frac{E}{2(1+\nu)}$.
 
 **Weak clamping.** Clamping at the fixed end is imposed weakly using one of two equivalent constraints at the midline:
 - $v_{,x}(l,0)=0$ (horizontal filament), or
@@ -34,9 +34,9 @@ We compare midline deflection against Euler–Bernoulli (EB) beam predictions ac
 ![Slenderness Ratios](Figures/convergence.png)
 
 **Log–log error.** If $\varepsilon_1$ denotes the mean absolute relative error in midline deflection, a representative fit gives
-$ \varepsilon_1 \approx C\,(2h/l)^{\,p},\qquad p\approx 2,\; C\approx 0.33, $
+$\varepsilon_1 \approx C\,(2h/l)^{\,p},\qquad p\approx 2,\; C\approx 0.33$,
 so to achieve a desired $\varepsilon_1^\star$,
-$ (2h/l)^\star \approx \sqrt{3\,\varepsilon_1^\star}. $
+$(2h/l)^\star \approx \sqrt{3\,\varepsilon_1^\star}$.
 
 ![Convergence log](Figures/convergence_log.png)
 

@@ -1,19 +1,27 @@
 # Biharmonic Plate Solution
 
-This repository implements a numerical solver for the in-plane displacements and stresses of a propped-cantilever rectangular plate subjected to a transverse continuous load. The formulation integrates the plane-stress constitutive laws, enforces shear compatibility, and applies weak clamping.
+This repository implements a numerical solver for the in-plane displacements and stresses of a propped-cantilever rectangular plate subjected to a transverse continuous load.
+
+![Problem Formulation](Figures/Problem Formulation.png)
 
 ## Theory
 
-For a linearly elastic plate, the Airy stress function $\Phi(x,y)$ satisfies the biharmonic equation
+For a linearly elastic plate, the Airy stress function $\Phi(x,y)$ identically satisfies equillibrium and enforces compatibiltiy via the biharmonic equation
 
 $$\nabla^{4}\Phi(x,y)=q(x,y).$$
 
-Here the transverse load is taken as an exponential distribution along the span,
+Stresses are recovered from $\Phi$. In-plane displacements $u(x,y)$ and $v(x,y)$ follow from integrating the plane-stress strains and enforcing shear compatibility.
+Clamping is applied weakly via either $\partial v(x,y)/\partial x$ or alternatively $\partial u(x,y)/\partial y$. Thus, clamping is applied either at the horizontal or vertical filament, respectively.
 
-$$w(x) = w_0e^{k x/\ell}.$$
+![Clamping](Figures/clamping conditions.png)
 
-Stresses are recovered from $\Phi$, and in-plane displacements $u(x,y)$ and $v(x,y)$ follow from integrating the plane-stress strains.
+## Results
+# Deformation Fields
+\textbf{Cantilever}
+![Deformation field](Figures/cont_deformation.png)
 
+\textbf{Propped Cantilever}
+![Superposed stresses](Figures/stress-superpose.png)
 
 ## Running the code
 
@@ -25,12 +33,6 @@ The scripts are written for MATLAB.  To reproduce figures:
 ```
 
 `Main.m` constructs `Plate` objects for several slenderness values and calls the plotting routines.  Additional plots such as `plot_displacement_exp` or `plot_stresses_exp` can be enabled in `Main.m`.
-
-## Example output
-
-![Deformation field](Figures/cont_deformation.png)
-
-![Superposed stresses](Figures/stress-superpose.png)
 
 ## References
 

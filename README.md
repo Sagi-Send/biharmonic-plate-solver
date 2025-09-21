@@ -2,7 +2,7 @@
 
 This repository implements a numerical solver for the in-plane displacements and stresses of a propped-cantilever rectangular plate subjected to a transverse continuous load.
 
-![Problem Formulation](Figures/Problem Formulation.png)
+![Problem Formulation](Figures/Problem_Formulation.png)
 
 ## Theory
 
@@ -11,16 +11,21 @@ For a linearly elastic plate, the Airy stress function $\Phi(x,y)$ identically s
 $$\nabla^{4}\Phi(x,y)=q(x,y).$$
 
 Stresses are recovered from $\Phi$. In-plane displacements $u(x,y)$ and $v(x,y)$ follow from integrating the plane-stress strains and enforcing shear compatibility.
-Clamping is applied weakly via either $\partial v(x,y)/\partial x$ or alternatively $\partial u(x,y)/\partial y$. Thus, clamping is applied either at the horizontal or vertical filament, respectively.
+Clamping is applied weakly via either $\partial v(x,y)/\partial x$ or alternatively $\partial u(x,y)/\partial y$. Thus, clamping is applied either at the horizontal or vertical filament, respectively:
 
 ![Clamping](Figures/clamping_conditions.png)
 
-## Resulting Deformation Fields
-\textbf{Cantilever}
+## Results
+Deformation Fields for cantilever with slenderness ratios of 1 and 0.1.
 ![Deformation field](Figures/cont_deformation.png)
 
-\textbf{Propped Cantilever}
+Deformation and Stress Fields for Propped Cantilever for a slenderness ratio of 0.1.
 ![Superposed stresses](Figures/stress-superpose.png)
+
+## Convergence Study
+![Slenderness Ratios](Figures/convergence.png)
+
+![Deformation field](Figures/convergence_log.png)
 
 ## Running the code
 
